@@ -1,0 +1,215 @@
+<MODULE>
+lcd
+</MODULE>
+
+<OPTC51>
+--model-small
+</OPTC51>
+
+<SEGMENTS>
+R_GSINIT,code,0000,NO
+R_BSEG,bit,0001,NO
+R_XSEG,xdata,0000,NO
+BIT_BANK,data,0000,OV
+R_CONST,code,0000,NO
+rbank0,data,0000,OV
+R_PSEG,xdata,0000,NO
+R_DINIT,code,0000,NO
+R_DSEG,data,0001,NO
+R_OSEG,data,0000,OV
+R_IXSEG,xdata,0000,NO
+R_ISEG,idata,0000,NO
+R_HOME,code,0000,NO
+R_XINIT,code,0000,NO
+R_CSEG,code,0111,NO
+</SEGMENTS>
+
+<LOCALS>
+L007014?,R_CSEG,009A,0000
+L007013?,R_CSEG,0098,0000
+L007011?,R_CSEG,0110,0000
+L007007?,R_CSEG,00F0,0000
+L007006?,R_CSEG,00E9,0000
+L007003?,R_CSEG,00B5,0000
+</LOCALS>
+
+<PUBLICS>
+_LCDprint,R_CSEG,0089,0000
+_WriteData,R_CSEG,0041,0000
+_LCD_pulse,R_CSEG,0000,0000
+_WriteCommand,R_CSEG,004C,0000
+_LCD_4BIT,R_CSEG,0057,0000
+_LCD_byte,R_CSEG,000B,0000
+_LCDprint_PARM_2,R_DSEG,0000,0001
+_LCDprint_PARM_3,R_BSEG,0000,0001
+</PUBLICS>
+
+<EXTERNALS>
+__gptrget,any,0000,0000
+_Timer3us,any,0000,0000
+_waitms,any,0000,0000
+</EXTERNALS>
+
+<CODE AT 0000>
+</CODE>
+
+<CODE R_HOME>
+</CODE>
+
+<CODE R_GSINIT>
+</CODE>
+
+<CODE R_CSEG>
+</CODE>
+
+<CODE R_HOME>
+</CODE>
+
+<CODE R_GSINIT>
+</CODE>
+
+<CODE R_GSINIT>
+</CODE>
+
+<CODE R_DINIT>
+</CODE>
+
+<CODE R_CSEG>
+D2 A0
+75 82 28
+12 addr16(_Timer3us;)  
+C2 A0
+22
+AA 82
+8A E0
+A2 E7
+92 90
+A2 E6
+92 91
+A2 E5
+92 92
+A2 E4
+92 93
+C0 02
+12 addr16(_LCD_pulse;)  
+75 82 28
+12 addr16(_Timer3us;)  
+D0 02
+8A E0
+A2 E3
+92 90
+A2 E2
+92 91
+A2 E1
+92 92
+A2 E0
+92 93
+02 addr16(_LCD_pulse;)  
+D2 97
+12 addr16(_LCD_byte;)  
+90 00 02
+02 addr16(_waitms;)  
+C2 97
+12 addr16(_LCD_byte;)  
+90 00 05
+02 addr16(_waitms;)  
+C2 A0
+90 00 14
+12 addr16(_waitms;)  
+75 82 33
+12 addr16(_WriteCommand;)  
+75 82 33
+12 addr16(_WriteCommand;)  
+75 82 32
+12 addr16(_WriteCommand;)  
+75 82 28
+12 addr16(_WriteCommand;)  
+75 82 0C
+12 addr16(_WriteCommand;)  
+75 82 01
+12 addr16(_WriteCommand;)  
+90 00 14
+02 addr16(_waitms;)  
+AA 82
+AB 83
+AC F0
+74 02
+B5 data8(_LCDprint_PARM_2;) rel3(L007013?;)
+7D C0
+80 rel2(L007014?;)
+7D 80
+8D 82
+C0 02
+C0 03
+C0 04
+12 addr16(_WriteCommand;)  
+90 00 05
+12 addr16(_waitms;)  
+D0 04
+D0 03
+D0 02
+7D 00
+7E 00
+ED
+2A
+FF
+EE
+3B
+F8
+8C 01
+8F 82
+88 83
+89 F0
+12 addr16(__gptrget;)  
+FF
+60 rel2(L007006?;)
+8F 82
+C0 02
+C0 03
+C0 04
+C0 05
+C0 06
+12 addr16(_WriteData;)  
+D0 06
+D0 05
+D0 04
+D0 03
+D0 02
+0D
+BD 00 rel3(L007003?;)
+0E
+80 rel2(L007003?;)
+30 bit(_LCDprint_PARM_3;) rel3(L007011?;)
+8D 02
+8E 03
+C3
+EA
+94 10
+EB
+64 80
+94 80
+50 rel2(L007011?;)
+75 82 20
+C0 02
+C0 03
+12 addr16(_WriteData;)  
+D0 03
+D0 02
+0A
+BA 00 rel3(L007007?;)
+0B
+80 rel2(L007007?;)
+22
+</CODE>
+
+<CODE R_CSEG>
+</CODE>
+
+<CODE R_XINIT>
+</CODE>
+
+<CODE R_CONST>
+</CODE>
+
+<CODE AT 0000>
+</CODE>

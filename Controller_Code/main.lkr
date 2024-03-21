@@ -1,0 +1,10 @@
+path=C:\CrossIDE\Call51\Bin\..\lib\small
+lib=libc51.lib
+lib=libint.lib
+lib=liblong.lib
+lib=libfloat.lib
+obj=main.obj
+obj=startup.obj
+obj=timing.obj
+obj=lcd.obj
+obj=adc.obj
