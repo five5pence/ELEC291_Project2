@@ -17,6 +17,11 @@
 #define LCD_D7 P1_0
 #define CHARS_PER_LINE 16
 
+
+//For speaker
+#define Speaker P3_0
+#define DEFAULT_F 15500L
+
 #define SYSCLK 72000000
 #define BAUDRATE 115200L
 #define SARCLK 18000000L
@@ -115,6 +120,15 @@ char _c51_external_startup (void)
 	TR1 = 1; // START Timer1
 	TI = 1;  // Indicate TX0 ready
   	
+	// Initialize timer 2 for periodic interrupts
+	TMR2CN0=0x00;   // Stop Timer2; Clear TF2;
+	CKCON0|=0b_0001_0000;
+	TMR2RL=(-(SYSCLK/(2*DEFAULT_F))); // Initialize reload value
+	TMR2=0xffff;   // Set to reload immediately
+	ET2=1;         // Enable Timer2 interrupts
+	TR2=1;         // Start Timer2
+	EA=1; // Global interrupt enable
+	
 	return 0;
 }
 
@@ -436,14 +450,22 @@ float Volts_at_Pin(unsigned char pin)
 	 return ((ADC_at_Pin(pin)*VDD)/16383.0);
 }
 
-
+void Timer2_ISR (void) interrupt INTERRUPT_TIMER2
+{
+	TF2H = 0; // Clear Timer2 interrupt flag
+	Speaker=!Speaker;
+	
+}
 
 void main (void)
 {
 	
 	float JS[2]; //for joystick
 	
-	
+	//variables for speaker
+	unsigned long int x,f;
+	f=2000; //set frequency of speaker to 2KHz
+	x=(SYSCLK/(2L*f));
 	
 	LCD_4BIT();
 	
@@ -470,16 +492,18 @@ void main (void)
 	
 	printf("\r\Press and hold the BOOT button to transmit.\r\n");
 	
-	
+	LCDprint("Remote Test",1,1);
 
 	while(1)
 	{
-		JS[0] = Volts_at_Pin(QFP32_MUX_P2_2);
-		JS[1] = Volts_at_Pin(QFP32_MUX_P2_3);	
+		JS[0] = Volts_at_Pin(QFP32_MUX_P2_2); //VRX
+		JS[1] = Volts_at_Pin(QFP32_MUX_P2_3); //VRY	
 		
-		
+		TR2=0; // Stop timer 2
+		TMR2RL=0x10000L-x; // Change reload value for new frequency
+		TR2=1; // Start timer 2
 	
-		sprintf(buff, "%.2f\r\n", JS[0]);
+		sprintf(buff, "VRX: %.2f, VRY: %.2f \r\n", JS[0],JS[1]);
 		sendstr1(buff);
 		waitms_or_RI1(200);
 		
