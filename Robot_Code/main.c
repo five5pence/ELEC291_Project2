@@ -41,16 +41,17 @@
 #define FREQ 100000L // We need the ISR for timer 1 every 10 us
 #define Baud2BRG(desired_baud)( (SYSCLK / (16*desired_baud))-1)
 
-// Measure pin period at pin 11 (RB4)
-#define PIN_PERIOD (PORTB&(1<<5)) // Set bit 5 of PORTB SFR, enabling RB4 as input
+// Measure pin period at pin 14 (RB5)
+#define PIN_PERIOD (PORTB&(1<<5)) // Set bit 5 of PORTB SFR
 
 volatile int ISR_pwm1=150, ISR_pwm2=150, ISR_cnt=0; // Declared variables as volatile, since they can be changed independent on normal code operation
-
+unsigned char motor_con[4]; //vector to control pinout
 // The Interrupt Service Routine for timer 1 is used to generate one or more standard
 // hobby servo signals.  The servo signal has a fixed period of 20ms and a pulse width
 // between 0.6ms and 2.4ms.
 
 // Interrupt occurs on overflow of timer 1 (every 10 us)
+/*
 void __ISR(_TIMER_1_VECTOR, IPL5SOFT) Timer1_Handler(void)
 {
 	IFS0CLR=_IFS0_T1IF_MASK; // Clear timer 1 interrupt flag, bit 4 of IFS0
@@ -71,6 +72,33 @@ void __ISR(_TIMER_1_VECTOR, IPL5SOFT) Timer1_Handler(void)
 		LATBbits.LATB4 = 1;
 	}
 }
+*/
+
+void motor_isr(_TIMER_1_VECTOR, IPL5SOFT) Timer1_Handler(void)
+{
+ 	IFS0CLR=_IFS0_T1IF_MASK; // Clear timer 1 interrupt flag, bit 4 of IFS0
+
+	ISR_cnt++; // Increment ISR counter every time interrupt occurs
+	if(ISR_cnt==ISR_pwm1)
+	{
+		LATBbits.LATB0 = 0; // When ISR hits pwm value, set to zero
+        LATBbits.LATB1 = 0;
+	}
+	if(ISR_cnt==ISR_pwm2)
+	{
+		LATBbits.LATB2 = 0; // refer to comment above
+        LATBbits.LATB3 = 0;
+	}
+	if(ISR_cnt>=2000) // Reset ISR count every 20ms, drive motor pins high
+	{
+		ISR_cnt=0; // 2000 * 10us=20ms
+        // drive pins to motor_con vector values
+        LATAbits.LATA3 = motor_con[0];
+        LATBbits.LATB5 = motor_con[1];
+        LATBbits.LATA4 = motor_con[2];
+        LATBbits.LATB6 = motor_con[3];
+	}   
+}
 
 void SetupTimer1 (void)
 {
@@ -89,7 +117,7 @@ void SetupTimer1 (void)
 	INTCONbits.MVEC = 1; //Int multi-vector
 	__builtin_enable_interrupts();
 }
-
+// Core timer information in section 2.2.3
 // Use the core timer to wait for 1 ms.
 void wait_1ms(void)
 {
@@ -106,6 +134,8 @@ void waitms(int len)
 }
 
 // GetPeriod() seems to work fine for frequencies between 200Hz and 700kHz.
+// Obtain period of n periodic pulses
+// Period is measured in (2/SYSCLK)s => 50ns intervals
 long int GetPeriod (int n)
 {
 	int i;
@@ -114,7 +144,7 @@ long int GetPeriod (int n)
     _CP0_SET_COUNT(0); // resets the core timer count
 	while (PIN_PERIOD!=0) // Wait for square wave to be 0
 	{
-		if(_CP0_GET_COUNT() > (SYSCLK/8)) return 0;
+		if(_CP0_GET_COUNT() > (SYSCLK/8)) return 0; // Core timer increments every 2 SYSCLK cycles, return 0 if more than 10*10^6 clk cycles elapse
 	}
 
     _CP0_SET_COUNT(0); // resets the core timer count
@@ -163,7 +193,7 @@ void uart_puts(char * s)
 	}
 }
 
-// Print number of specified base to serial
+// Print number of specified base to serial (up to equivalent hex base)
 char HexDigit[]="0123456789ABCDEF";
 void PrintNumber(long int val, int Base, int digits)
 { 
@@ -193,6 +223,7 @@ void ADCConf(void)
     AD1CON1SET=0x8000;      // Enable ADC
 }
 
+// Reads ADC at specified pin
 int ADCRead(char analogPIN)
 {
     AD1CHS = analogPIN << 16;    // AD1CHS<16:19> controls which analog pin goes to the ADC
@@ -207,6 +238,7 @@ int ADCRead(char analogPIN)
 void ConfigurePins(void)
 {
     // Configure pins as analog inputs
+    // Registers are bit addressable
     ANSELBbits.ANSB2 = 1;   // set RB2 (AN4, pin 6 of DIP28) as analog pin
     TRISBbits.TRISB2 = 1;   // set RB2 as an input
     ANSELBbits.ANSB3 = 1;   // set RB3 (AN5, pin 7 of DIP28) as analog pin
@@ -221,6 +253,7 @@ void ConfigurePins(void)
     // ANSELBbits.ANSELB5=0;  Not needed because RB5 can not be analog input?
     // TRISBbits.TRISB5=1;
     // CNPUBbits.CNPUB5=1;
+    // Bit mask/address according to preference
     
     // Configure output pins
 	TRISAbits.TRISA0 = 0; // pin  2 of DIP28
@@ -233,6 +266,7 @@ void ConfigurePins(void)
 	INTCONbits.MVEC = 1;
 }
 
+// Print a fixed point number broken into its components
 void PrintFixedPoint (unsigned long number, int decimals)
 {
 	int divider=1, j;
@@ -244,7 +278,46 @@ void PrintFixedPoint (unsigned long number, int decimals)
 	uart_puts(".");
 	PrintNumber(number%divider, 10, decimals);
 }
-
+// Motor drive mode is defined by a numerical input
+// 1 = forward, 2 = reverse, 3 = CW, 4 = CCW, otherwise = no motion
+void update_motors (char control_flags)
+{
+        if (control_flags==1) //two forward
+        {
+            motor_con[0] = 1;
+            motor_con[1] = 0;
+            motor_con[2] = 1;
+            motor_con[3] = 0;
+        }
+        else if (control_flags==2) //two reverse
+        {
+            motor_con[0] = 0;
+            motor_con[1] = 1;
+            motor_con[2] = 0;
+            motor_con[3] = 1;
+        }
+        else if (control_flags==3) //CW rotation
+        {
+            motor_con[0] = 1;
+            motor_con[1] = 0;
+            motor_con[2] = 0;
+            motor_con[3] = 1;
+        }
+        else if (control_flags==4) //CCW rotation
+        {
+            motor_con[0] = 0;
+            motor_con[1] = 1;
+            motor_con[2] = 1;
+            motor_con[3] = 0;
+        }
+        else //default case no motion
+        {
+            motor_con[0] = 0;
+            motor_con[1] = 0;
+            motor_con[2] = 0;
+            motor_con[3] = 0;
+        }
+}
 // In order to keep this as nimble as possible, avoid
 // using floating point or printf() on any of its forms!
 void main(void)
@@ -254,6 +327,8 @@ void main(void)
     long int v;
 	unsigned long int count, f;
 	unsigned char LED_toggle=0;
+    // placeholder value for motor control variable
+    unsigned char num = 0;
 
 	CFGCON = 0;
   
@@ -272,6 +347,14 @@ void main(void)
 	uart_puts("Generates Servo PWM signals at RA3, RB4 (pins 10, 11 of DIP28 package)\r\n\r\n");
 	while(1)
 	{
+        // test code to drive 
+        update_motors(num);
+        num++;
+        if(num>4)
+        {
+            num = 0;
+        }
+
     	adcval = ADCRead(4); // note that we call pin AN4 (RB2) by it's analog number
 		uart_puts("ADC[4]=0x");
 		PrintNumber(adcval, 16, 3);
@@ -288,10 +371,10 @@ void main(void)
 		PrintFixedPoint(v, 3);
 		uart_puts("V ");
 
-		count=GetPeriod(100);
+		count=GetPeriod(100); // Get period of 100 wave cycles
 		if(count>0)
 		{
-			f=((SYSCLK/2L)*100L)/count;
+			f=((SYSCLK/2L)*100L)/count; // Convert period units to Hz
 			uart_puts("f=");
 			PrintNumber(f, 10, 7);
 			uart_puts("Hz, count=");
@@ -333,25 +416,45 @@ void main(void)
 		}
 		if(LED_toggle>4) LED_toggle=0;
 
-		// Change the servo PWM signals
+		// Change the servo PWM signals, values continuously drive motor ISR
 		if (ISR_pwm1<200)
 		{
 			ISR_pwm1++; // Slowly ramp up PWM
 		}
 		else
 		{
-			ISR_pwm1=100;	// Cap out at 100% duty cycle
+			ISR_pwm1=100;	// Go back down to 100
 		}
 
-		if (ISR_pwm2>100) // Ramp down
+		if (ISR_pwm2>100) // Ramp down PWM
 		{
 			ISR_pwm2--;
 		}
 		else
 		{
-			ISR_pwm2=200;	
+			ISR_pwm2=200;   // Go back up to 100
 		}
 
 		waitms(200);
 	}
 }
+/*
+PIC32 Pinout (Robot Components)
+                                          --------
+                                   MCLR -|1     28|- AVDD 
+  VREF+/CVREF+/AN0/C3INC/RPA0/CTED1/RA0 -|2     27|- AVSS 
+        VREF-/CVREF-/AN1/RPA1/CTED2/RA1 -|3     26|- JDY40 RXD
+                           Left Motor F -|4     25|- JDY40 SET
+                           Left Motor R -|5     24|- JDY40 TXD
+                          Right Motor F -|6     23|- AN12/PMD0/RB12
+                          Right Motor R -|7     22|- PGEC2/TMS/RPB11/PMD1/RB11
+                                    VSS -|8     21|- PGED2/RPB10/CTED11/PMD2/RB10
+                     OSC1/CLKI/RPA2/RA2 -|9     20|- VCAP
+                OSC2/CLKO/RPA3/PMA0/RA3 -|10    19|- VSS
+                         SOSCI/RPB4/RB4 -|11    18|- TDO/RPB9/SDA1/CTED4/PMD3/RB9
+         SOSCO/RPA4/T1CK/CTED9/PMA1/RA4 -|12    17|- TCK/RPB8/SCL1/CTED10/PMD4/RB8
+                                    VDD -|13    16|- TDI/RPB7/CTED3/PMD5/INT0/RB7
+                     Period Measurement -|14    15|- JDY40 BOOT (transmit data)
+                                          --------
+
+*/
