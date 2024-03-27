@@ -6,6 +6,8 @@
 #include <sys/attribs.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+// #include "JDY40.h"
 
 /* Pinout for DIP28 PIC32MX130:
                                           --------
@@ -183,6 +185,35 @@ void UART2Configure(int baud_rate)
     U2MODESET = 0x8000;     // enable UART2
 }
 
+// Needed to bypass scanf() and gets()
+int _mon_getc(int canblock)
+{
+	char c;
+	
+    if (canblock)
+    {
+	    while( !U2STAbits.URXDA); // wait (block) until data available in RX buffer
+	    c=U2RXREG;
+        while( U2STAbits.UTXBF);    // wait while TX buffer full
+        U2TXREG = c;          // echo
+	    if(c=='\r') c='\n'; // When using PUTTY, pressing <Enter> sends '\r'.  Ctrl-J sends '\n'
+		return (int)c;
+    }
+    else
+    {
+        if (U2STAbits.URXDA) // if data available in RX buffer
+        {
+		    c=U2RXREG;
+		    if(c=='\r') c='\n';
+			return (int)c;
+        }
+        else
+        {
+            return -1; // no characters to return
+        }
+    }
+}
+
 // Print string to UART
 void uart_puts(char * s)
 {
@@ -191,6 +222,106 @@ void uart_puts(char * s)
 		putchar(*s);
 		s++;
 	}
+}
+
+/////////////////////////////////////////////////////////
+// UART1 functions used to communicate with the JDY40  //
+/////////////////////////////////////////////////////////
+
+// TXD1 is in pin 26
+// RXD1 is in pin 24
+
+int UART1Configure(int desired_baud)
+{
+	int actual_baud;
+
+    // Peripheral Pin Select for UART1.  These are the pins that can be used for U1RX from TABLE 11-1 of '60001168J.pdf':
+    // 0000 = RPA2
+	// 0001 = RPB6
+	// 0010 = RPA4
+	// 0011 = RPB13
+	// 0100 = RPB2
+
+	// Do what the caption of FIGURE 11-2 in '60001168J.pdf' says: "For input only, PPS functionality does not have
+    // priority over TRISx settings. Therefore, when configuring RPn pin for input, the corresponding bit in the
+    // TRISx register must also be configured for input (set to �1�)."
+    
+    ANSELB &= ~(1<<13); // Set RB13 as a digital I/O
+    TRISB |= (1<<13);   // configure pin RB13 as input
+    CNPUB |= (1<<13);   // Enable pull-up resistor for RB13
+    U1RXRbits.U1RXR = 3; // SET U1RX to RB13
+
+    // These are the pins that can be used for U1TX. Check table TABLE 11-2 of '60001168J.pdf':
+    // RPA0
+	// RPB3
+	// RPB4
+	// RPB15
+	// RPB7
+
+    ANSELB &= ~(1<<15); // Set RB15 as a digital I/O
+    RPB15Rbits.RPB15R = 1; // SET RB15 to U1TX
+	
+    U1MODE = 0;         // disable autobaud, TX and RX enabled only, 8N1, idle=HIGH
+    U1STA = 0x1400;     // enable TX and RX
+    U1BRG = Baud1BRG(desired_baud); // U1BRG = (FPb / (16*baud)) - 1
+    // Calculate actual baud rate
+    actual_baud = SYSCLK / (16 * (U1BRG+1));
+
+    U1MODESET = 0x8000;     // enable UART1
+
+    return actual_baud;
+}
+ 
+int SerialTransmit1(const char *buffer)
+{
+    unsigned int size = strlen(buffer);
+    while(size)
+    {
+        while( U1STAbits.UTXBF);    // wait while TX buffer full
+        U1TXREG = *buffer;          // send single character to transmit buffer
+        buffer++;                   // transmit next character on following loop
+        size--;                     // loop until all characters sent (when size = 0)
+    }
+ 
+    while( !U1STAbits.TRMT);        // wait for last transmission to finish
+ 
+    return 0;
+}
+ 
+unsigned int SerialReceive1(char *buffer, unsigned int max_size)
+{
+    unsigned int num_char = 0;
+ 
+    while(num_char < max_size)
+    {
+        while( !U1STAbits.URXDA);   // wait until data available in RX buffer
+        *buffer = U1RXREG;          // empty contents of RX buffer into *buffer pointer
+ 
+        // insert nul character to indicate end of string
+        if( *buffer == '\n')
+        {
+            *buffer = '\0';     
+            break;
+        }
+ 
+        buffer++;
+        num_char++;
+    }
+ 
+    return num_char;
+}
+
+void SendATCommand (char * s)
+{
+	char buff[40];
+	printf("Command: %s", s);
+	LATB &= ~(1<<14); // 'SET' pin of JDY40 to 0 is 'AT' mode.
+	waitms(10);
+	SerialTransmit1(s);
+	SerialReceive1(buff, sizeof(buff)-1);
+	LATB |= 1<<14; // 'SET' pin of JDY40 to 1 is normal operation mode.
+	waitms(10);
+	printf("Response: %s\n", buff);
 }
 
 // Print number of specified base to serial (up to equivalent hex base)
@@ -210,60 +341,6 @@ void PrintNumber(long int val, int Base, int digits)
 		if(digits!=0) digits--;
 	}
 	uart_puts(&buff[j+1]);
-}
-
-// Good information about ADC in PIC32 found here:
-// http://umassamherstm5.org/tech-tutorials/pic32-tutorials/pic32mx220-tutorials/adc
-void ADCConf(void)
-{
-    AD1CON1CLR = 0x8000;    // disable ADC before configuration
-    AD1CON1 = 0x00E0;       // internal counter ends sampling and starts conversion (auto-convert), manual sample
-    AD1CON2 = 0;            // AD1CON2<15:13> set voltage reference to pins AVSS/AVDD
-    AD1CON3 = 0x0f01;       // TAD = 4*TPB, acquisition time = 15*TAD 
-    AD1CON1SET=0x8000;      // Enable ADC
-}
-
-// Reads ADC at specified pin
-int ADCRead(char analogPIN)
-{
-    AD1CHS = analogPIN << 16;    // AD1CHS<16:19> controls which analog pin goes to the ADC
- 
-    AD1CON1bits.SAMP = 1;        // Begin sampling
-    while(AD1CON1bits.SAMP);     // wait until acquisition is done
-    while(!AD1CON1bits.DONE);    // wait until conversion done
- 
-    return ADC1BUF0;             // result stored in ADC1BUF0
-}
-
-void ConfigurePins(void)
-{
-    // Configure pins as analog inputs
-    // Registers are bit addressable
-    ANSELBbits.ANSB2 = 1;   // set RB2 (AN4, pin 6 of DIP28) as analog pin
-    TRISBbits.TRISB2 = 1;   // set RB2 as an input
-    ANSELBbits.ANSB3 = 1;   // set RB3 (AN5, pin 7 of DIP28) as analog pin
-    TRISBbits.TRISB3 = 1;   // set RB3 as an input
-    
-	// Configure digital input pin to measure signal period
-	ANSELB &= ~(1<<5); // Set RB5 as a digital I/O (pin 14 of DIP28)
-    TRISB |= (1<<5);   // configure pin RB5 as input
-    CNPUB |= (1<<5);   // Enable pull-up resistor for RB5
-    
-    // We can do the three lines above using this instead:
-    // ANSELBbits.ANSELB5=0;  Not needed because RB5 can not be analog input?
-    // TRISBbits.TRISB5=1;
-    // CNPUBbits.CNPUB5=1;
-    // Bit mask/address according to preference
-    
-    // Configure output pins
-	TRISAbits.TRISA0 = 0; // pin  2 of DIP28
-	TRISAbits.TRISA1 = 0; // pin  3 of DIP28
-	TRISBbits.TRISB0 = 0; // pin  4 of DIP28
-	TRISBbits.TRISB1 = 0; // pin  5 of DIP28
-	TRISAbits.TRISA2 = 0; // pin  9 of DIP28
-	TRISAbits.TRISA3 = 0; // pin 10 of DIP28
-	TRISBbits.TRISB4 = 0; // pin 11 of DIP28
-	INTCONbits.MVEC = 1;
 }
 
 // Print a fixed point number broken into its components
@@ -318,58 +395,74 @@ void update_motors (char control_flags)
             motor_con[3] = 0;
         }
 }
+
+//extract numbers from string
+int * numsfromstr (char *string, int *buffer)
+{
+	int i;
+	int j = 0;
+	int k = 0;
+	char temp[] = ""; //temporary number storage buffer
+	// scan length of string
+	for (i=0,i < (sizeof(string)-1),i++)
+	{
+		if ((string[i] - '0' >= 0) && (string[i] - '0' <= 9))
+		{
+			// put value into a char array if the value is an int
+			temp[k] += string[i];
+			k++;
+		}
+		else
+		{
+			if (sizeof(temp)>0) //if there is an entry in temp
+			{
+				buffer[j] = stoi(temp); //convert to int
+				j++; //increment through destination
+				k = 0; //reset k cursor
+				temp = "";
+			}
+		}
+	}
+	return *buffer;
+}
 // In order to keep this as nimble as possible, avoid
 // using floating point or printf() on any of its forms!
 void main(void)
 {
 	volatile unsigned long t=0;
-    int adcval;
-    long int v;
 	unsigned long int count, f;
-	unsigned char LED_toggle=0;
     // placeholder value for motor control variable
-    unsigned char num = 0;
+    unsigned char mode = 0;
+	char buff[80];
+	int nums[3];
 
 	CFGCON = 0;
   
     UART2Configure(115200);  // Configure UART2 for a baud rate of 115200
-    ConfigurePins();
+    UART1Configure(9600); // Configure UART1 to read serial values from the JDY40
+	ConfigurePins();
     SetupTimer1();
   
     ADCConf(); // Configure ADC
     
     waitms(500); // Give PuTTY time to start
 	uart_puts("\x1b[2J\x1b[1;1H"); // Clear screen using ANSI escape sequence.
-	uart_puts("\r\nPIC32 multi I/O example.\r\n");
-	uart_puts("Measures the voltage at channels 4 and 5 (pins 6 and 7 of DIP28 package)\r\n");
-	uart_puts("Measures period on RB5 (pin 14 of DIP28 package)\r\n");
-	uart_puts("Toggles RA0, RA1, RB0, RB1, RA2 (pins 2, 3, 4, 5, 9, of DIP28 package)\r\n");
-	uart_puts("Generates Servo PWM signals at RA3, RB4 (pins 10, 11 of DIP28 package)\r\n\r\n");
+	uart_puts("\r\nPIC32 Robot Test\r\n");
 	while(1)
 	{
-        // test code to drive 
-        update_motors(num);
-        num++;
-        if(num>4)
-        {
-            num = 0;
-        }
+        // Read serial values from JDY40
+		if(U1STAbits.URXDA)
+		{
+			SerialReceive1(buff, sizeof(buff)-1);
+			numsfromstr(buff, nums); //Extract values from string
+		}
 
-    	adcval = ADCRead(4); // note that we call pin AN4 (RB2) by it's analog number
-		uart_puts("ADC[4]=0x");
-		PrintNumber(adcval, 16, 3);
-		uart_puts(", V=");
-		v=(adcval*3290L)/1023L; // 3.290 is VDD
-		PrintFixedPoint(v, 3);
-		uart_puts("V ");
+        ISR_pwm1 = nums[1]; //placeholder, should be the pwm field in JDY40 read
+        ISR_pwm2 = nums[2];
+        mode = nums[0]; //placeholder, should be mode field of JDY40 read
 
-		adcval=ADCRead(5);
-		uart_puts("ADC[5]=0x");
-		PrintNumber(adcval, 16, 3);
-		uart_puts(", V=");
-		v=(adcval*3290L)/1023L; // 3.290 is VDD
-		PrintFixedPoint(v, 3);
-		uart_puts("V ");
+        // update motor operation mode
+        update_motors(mode);
 
 		count=GetPeriod(100); // Get period of 100 wave cycles
 		if(count>0)
@@ -386,54 +479,8 @@ void main(void)
 			uart_puts("NO SIGNAL                     \r");
 		}
 
-		// Now toggle the pins on/off to see if they are working.
-		// First turn all off:
-		LATAbits.LATA0 = 0;	
-		LATAbits.LATA1 = 0;			
-		LATBbits.LATB0 = 0;			
-		LATBbits.LATB1 = 0;		
-		LATAbits.LATA2 = 0;			
-		// Now turn on one of the outputs per loop cycle to check
-		switch (LED_toggle++)
-		{
-			case 0:
-				LATAbits.LATA0 = 1;
-				break;
-			case 1:
-				LATAbits.LATA1 = 1;
-				break;
-			case 2:
-				LATBbits.LATB0 = 1;
-				break;
-			case 3:
-				LATBbits.LATB1 = 1;
-				break;
-			case 4:
-				LATAbits.LATA2 = 1;
-				break;
-			default:
-				break;
-		}
-		if(LED_toggle>4) LED_toggle=0;
-
-		// Change the servo PWM signals, values continuously drive motor ISR
-		if (ISR_pwm1<200)
-		{
-			ISR_pwm1++; // Slowly ramp up PWM
-		}
-		else
-		{
-			ISR_pwm1=100;	// Go back down to 100
-		}
-
-		if (ISR_pwm2>100) // Ramp down PWM
-		{
-			ISR_pwm2--;
-		}
-		else
-		{
-			ISR_pwm2=200;   // Go back up to 100
-		}
+        // If the controller requests a frequency read, send it
+        
 
 		waitms(200);
 	}
@@ -456,5 +503,5 @@ PIC32 Pinout (Robot Components)
                                     VDD -|13    16|- TDI/RPB7/CTED3/PMD5/INT0/RB7
                      Period Measurement -|14    15|- JDY40 BOOT (transmit data)
                                           --------
-
+28.6kHz - 40kHz range of frequency
 */
