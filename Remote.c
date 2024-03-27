@@ -459,8 +459,12 @@ void Timer2_ISR (void) interrupt INTERRUPT_TIMER2
 
 void main (void)
 {
+	float pwmR;
+	float pwmL;
+	int mode; // forwards and reverse travel 0=back, 1=front
 	
 	float JS[2]; //for joystick
+	
 	
 	//variables for speaker
 	unsigned long int x,f;
@@ -479,7 +483,7 @@ void main (void)
 	InitADC();
 	
 	//For JDY 40 transmission 
-	SendATCommand("AT+DVIDABBA\r\n");  
+	SendATCommand("AT+DVIDBABA\r\n");  
 
 	// To check configuration
 	SendATCommand("AT+VER\r\n");
@@ -499,12 +503,48 @@ void main (void)
 		JS[0] = Volts_at_Pin(QFP32_MUX_P2_2); //VRX
 		JS[1] = Volts_at_Pin(QFP32_MUX_P2_3); //VRY	
 		
+		//For speaker
 		TR2=0; // Stop timer 2
+		
 		TMR2RL=0x10000L-x; // Change reload value for new frequency
 		TR2=1; // Start timer 2
-	
-		sprintf(buff, "VRX: %.2f, VRY: %.2f \r\n", JS[0],JS[1]);
-		sendstr1(buff);
+		
+		//At the origin or no motion coordinate system will be set as (vry,vrx) because joystick is rotated on the board
+		//pwm1 is right motor
+		//pwm2 is left motor
+		
+		
+		if (JS[0]>1.71)//going forward
+		{
+			pwmR=(JS[0]-1.70)/0.01604;
+			pwmL=(JS[0]-1.70)/0.01604;
+			mode=1;
+		}
+		else if(JS[1]>1.73) //for going right
+			{
+			pwmL=(JS[1]-1.72)/0.01604;
+			pwmR=0.0;
+			}
+		
+		else if (JS[1]<1.68) //for going left
+			{
+			pwmR=100.0-(JS[1]-0.041)/0.01604;
+			pwmL=0.0;
+			}
+		else if (JS[0]<1.69) //for going backwards
+			{
+			pwmR=(1.71-JS[0])/0.01604;
+			pwmL=(1.71-JS[0])/0.01604;
+			mode=0;
+			}
+		else{ //at rest
+			pwmL=0.0;
+			pwmR=0.0;
+			}
+		
+		printf("pwmR: %.3f pwmL: %.3f , mode:%d \r\n", pwmR,pwmL,mode);
+		//sprintf(buff, "pwmR: %.0f pwmL: %.0f \r\n", pwmR,pwmL);
+		//sendstr1(buff);
 		waitms_or_RI1(200);
 		
 		if(RXU1())
