@@ -343,6 +343,24 @@ void PrintNumber(long int val, int Base, int digits)
 	uart_puts(&buff[j+1]);
 }
 
+//send number through JDY40
+void SendInt(long int val, int base, int digits)
+{
+	int j;
+	#define NBITS 32
+	char buff[NBITS+1];
+	buff[NBITS]=0;
+
+	j=NBITS-1;
+	while ( (val>0) | (digits>0) )
+	{
+		buff[j--]=HexDigit[val%Base];
+		val/=Base;
+		if(digits!=0) digits--;
+	}
+	SerialTransmit1(&buff[j+1]);
+}
+
 // Print a fixed point number broken into its components
 void PrintFixedPoint (unsigned long number, int decimals)
 {
@@ -455,10 +473,11 @@ void main(void)
 		{
 			SerialReceive1(buff, sizeof(buff)-1);
 			numsfromstr(buff, nums); //Extract values from string
+			SendInt(f,10,6); // Transmit frequency value
 		}
 
-        ISR_pwm1 = nums[1]; //placeholder, should be the pwm field in JDY40 read
-        ISR_pwm2 = nums[2];
+        ISR_pwm1 = nums[1]*20; //Power percentage converted to PWM power value
+        ISR_pwm2 = nums[2]*20; //
         mode = nums[0]; //placeholder, should be mode field of JDY40 read
 
         // update motor operation mode
@@ -480,8 +499,6 @@ void main(void)
 		}
 
         // If the controller requests a frequency read, send it
-        
-
 		waitms(200);
 	}
 }
