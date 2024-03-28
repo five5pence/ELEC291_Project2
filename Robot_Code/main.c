@@ -42,6 +42,7 @@
 #define SYSCLK 40000000L
 #define FREQ 100000L // We need the ISR for timer 1 every 10 us
 #define Baud2BRG(desired_baud)( (SYSCLK / (16*desired_baud))-1)
+#define Baud1BRG(desired_baud)( (SYSCLK / (16*desired_baud))-1)
 
 // Measure pin period at pin 14 (RB5)
 #define PIN_PERIOD (PORTB&(1<<5)) // Set bit 5 of PORTB SFR
@@ -76,7 +77,7 @@ void __ISR(_TIMER_1_VECTOR, IPL5SOFT) Timer1_Handler(void)
 }
 */
 
-void motor_isr(_TIMER_1_VECTOR, IPL5SOFT) Timer1_Handler(void)
+void __ISR(_TIMER_1_VECTOR, IPL5SOFT) Timer1_Handler(void)
 {
  	IFS0CLR=_IFS0_T1IF_MASK; // Clear timer 1 interrupt flag, bit 4 of IFS0
 
@@ -95,10 +96,10 @@ void motor_isr(_TIMER_1_VECTOR, IPL5SOFT) Timer1_Handler(void)
 	{
 		ISR_cnt=0; // 2000 * 10us=20ms
         // drive pins to motor_con vector values
-        LATAbits.LATA3 = motor_con[0];
-        LATBbits.LATB5 = motor_con[1];
-        LATBbits.LATA4 = motor_con[2];
-        LATBbits.LATB6 = motor_con[3];
+        LATBbits.LATB0 = motor_con[0];
+        LATBbits.LATB1 = motor_con[1];
+        LATBbits.LATB2 = motor_con[2];
+        LATBbits.LATB3 = motor_con[3];
 	}   
 }
 
@@ -344,7 +345,7 @@ void PrintNumber(long int val, int Base, int digits)
 }
 
 //send number through JDY40
-void SendInt(long int val, int base, int digits)
+void SendInt(long int val, int Base, int digits)
 {
 	int j;
 	#define NBITS 32
@@ -413,36 +414,38 @@ void update_motors (char control_flags)
             motor_con[3] = 0;
         }
 }
-
+/*
 //extract numbers from string
 int * numsfromstr (char *string, int *buffer)
 {
 	int i;
 	int j = 0;
-	int k = 0;
-	char temp[] = ""; //temporary number storage buffer
+	char temp[8]; //temporary number storage buffer
 	// scan length of string
-	for (i=0,i < (sizeof(string)-1),i++)
+	do
 	{
-		if ((string[i] - '0' >= 0) && (string[i] - '0' <= 9))
+		if ((string[i] - '0' >= 0) && (string[i] - '0' <= 9)) //ASCII number detection
 		{
 			// put value into a char array if the value is an int
-			temp[k] += string[i];
-			k++;
+			temp[j] += string[i];
+			j++;
 		}
-		else
-		{
-			if (sizeof(temp)>0) //if there is an entry in temp
-			{
-				buffer[j] = stoi(temp); //convert to int
-				j++; //increment through destination
-				k = 0; //reset k cursor
-				temp = "";
-			}
-		}
+		i++; //increment through string
 	}
+	while (string[i] != '/0');
+
+	//temp[j+1] = '/0'; //terminate temp to make it a proper string
+
+	buffer[0] = (temp[0] - '0'); // cast chars to int values
+	buffer[1] += (temp[1]-'0')*100;
+	buffer[2] += (temp[2]-'0')*10;
+	buffer[3] += (temp[3]-'0');
+	buffer[4] += (temp[4]-'0')*100;
+	buffer[5] += (temp[5]-'0')*10;
+	buffer[6] += (temp[6]-'0');
+
 	return *buffer;
-}
+}*/
 // In order to keep this as nimble as possible, avoid
 // using floating point or printf() on any of its forms!
 void main(void)
@@ -458,21 +461,33 @@ void main(void)
   
     UART2Configure(115200);  // Configure UART2 for a baud rate of 115200
     UART1Configure(9600); // Configure UART1 to read serial values from the JDY40
-	ConfigurePins();
     SetupTimer1();
-  
-    ADCConf(); // Configure ADC
     
     waitms(500); // Give PuTTY time to start
 	uart_puts("\x1b[2J\x1b[1;1H"); // Clear screen using ANSI escape sequence.
 	uart_puts("\r\nPIC32 Robot Test\r\n");
 	while(1)
 	{
+		count=GetPeriod(100); // Get period of 100 wave cycles
+		if(count>0)
+		{
+			f=((SYSCLK/2L)*100L)/count; // Convert period units to Hz
+			uart_puts("f=");
+			PrintNumber(f, 10, 7);
+			uart_puts("Hz, count=");
+			PrintNumber(count, 10, 6);
+			uart_puts("          \r");
+		}
+		else
+		{
+			uart_puts("NO SIGNAL                     \r");
+		}
+/*
         // Read serial values from JDY40
 		if(U1STAbits.URXDA)
 		{
 			SerialReceive1(buff, sizeof(buff)-1);
-			numsfromstr(buff, nums); //Extract values from string
+			nums = numsfromstr(buff, nums); //Extract values from string
 			SendInt(f,10,6); // Transmit frequency value
 		}
 
@@ -482,7 +497,7 @@ void main(void)
 
         // update motor operation mode
         update_motors(mode);
-
+*/
 		count=GetPeriod(100); // Get period of 100 wave cycles
 		if(count>0)
 		{
