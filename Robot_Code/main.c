@@ -47,35 +47,11 @@
 // Measure pin period at pin 14 (RB5)
 #define PIN_PERIOD (PORTB&(1<<5)) // Set bit 5 of PORTB SFR
 
-volatile int ISR_pwm1=150, ISR_pwm2=150, ISR_cnt=0; // Declared variables as volatile, since they can be changed independent on normal code operation
+volatile int ISR_pwm1=1000, ISR_pwm2=1000, ISR_cnt=0; // Declared variables as volatile, since they can be changed independent on normal code operation
 unsigned char motor_con[4]; //vector to control pinout
 // The Interrupt Service Routine for timer 1 is used to generate one or more standard
 // hobby servo signals.  The servo signal has a fixed period of 20ms and a pulse width
 // between 0.6ms and 2.4ms.
-
-// Interrupt occurs on overflow of timer 1 (every 10 us)
-/*
-void __ISR(_TIMER_1_VECTOR, IPL5SOFT) Timer1_Handler(void)
-{
-	IFS0CLR=_IFS0_T1IF_MASK; // Clear timer 1 interrupt flag, bit 4 of IFS0
-
-	ISR_cnt++; // Increment ISR counter every time interrupt occurs
-	if(ISR_cnt==ISR_pwm1)
-	{
-		LATAbits.LATA3 = 0; // When ISR hits pwm value, set to zero
-	}
-	if(ISR_cnt==ISR_pwm2)
-	{
-		LATBbits.LATB4 = 0; // refer to comment above
-	}
-	if(ISR_cnt>=2000) // Reset ISR count every 20ms, drive motor pins high
-	{
-		ISR_cnt=0; // 2000 * 10us=20ms
-		LATAbits.LATA3 = 1;
-		LATBbits.LATB4 = 1;
-	}
-}
-*/
 
 void __ISR(_TIMER_1_VECTOR, IPL5SOFT) Timer1_Handler(void)
 {
@@ -134,6 +110,22 @@ void wait_1ms(void)
 void waitms(int len)
 {
 	while(len--) wait_1ms();
+}
+
+void ConfigurePins(void)
+{   
+	// Configure digital input pin to measure signal period
+	//ANSELB &= ~(1<<5); // Set RB5 as a digital I/O (pin 14 of DIP28)
+    //TRISB |= (1<<5);   // configure pin RB5 as input
+    //CNPUB |= (1<<5);   // Enable pull-up resistor for RB5
+    
+    // Configure output pins
+	TRISBbits.TRISB0 = 0; // pin  4 of DIP28
+	TRISBbits.TRISB1 = 0; // pin  5 of DIP28
+	TRISBbits.TRISB2 = 0; // pin  6 of DIP28
+	TRISBbits.TRISB3 = 0; // pin  7 of DIP28
+
+	INTCONbits.MVEC = 1;
 }
 
 // GetPeriod() seems to work fine for frequencies between 200Hz and 700kHz.
@@ -414,38 +406,43 @@ void update_motors (char control_flags)
             motor_con[3] = 0;
         }
 }
-/*
+
 //extract numbers from string
-int * numsfromstr (char *string, int *buffer)
+// IMPORTANT: JDY40 instructions numbers must be int, mode is 1 digit, and power must be 3 digits
+// i.e. 50 => 050, 2 => 002
+void numsfromstr (char *string, int buffer[])
 {
 	int i;
 	int j = 0;
 	char temp[8]; //temporary number storage buffer
+
+	//clear buffer
+	buffer[0] = 0;
+	buffer[1] = 0;
+	buffer[2] = 0;
 	// scan length of string
 	do
 	{
 		if ((string[i] - '0' >= 0) && (string[i] - '0' <= 9)) //ASCII number detection
 		{
 			// put value into a char array if the value is an int
-			temp[j] += string[i];
+			temp[j] = string[i];
 			j++;
 		}
 		i++; //increment through string
 	}
-	while (string[i] != '/0');
+	while (string[i] != '\0');
 
 	//temp[j+1] = '/0'; //terminate temp to make it a proper string
 
 	buffer[0] = (temp[0] - '0'); // cast chars to int values
 	buffer[1] += (temp[1]-'0')*100;
-	buffer[2] += (temp[2]-'0')*10;
-	buffer[3] += (temp[3]-'0');
-	buffer[4] += (temp[4]-'0')*100;
-	buffer[5] += (temp[5]-'0')*10;
-	buffer[6] += (temp[6]-'0');
-
-	return *buffer;
-}*/
+	buffer[1] += (temp[2]-'0')*10;
+	buffer[1] += (temp[3]-'0');
+	buffer[2] += (temp[4]-'0')*100;
+	buffer[2] += (temp[5]-'0')*10;
+	buffer[2] += (temp[6]-'0');
+}
 // In order to keep this as nimble as possible, avoid
 // using floating point or printf() on any of its forms!
 void main(void)
@@ -462,6 +459,7 @@ void main(void)
     UART2Configure(115200);  // Configure UART2 for a baud rate of 115200
     UART1Configure(9600); // Configure UART1 to read serial values from the JDY40
     SetupTimer1();
+	ConfigurePins();
     
     waitms(500); // Give PuTTY time to start
 	uart_puts("\x1b[2J\x1b[1;1H"); // Clear screen using ANSI escape sequence.
@@ -469,27 +467,42 @@ void main(void)
 	while(1)
 	{
 		count=GetPeriod(100); // Get period of 100 wave cycles
+		if (count > 22000){
+			count=GetPeriod(100); // If invalid, measure again
+		}
+
 		if(count>0)
 		{
 			f=((SYSCLK/2L)*100L)/count; // Convert period units to Hz
-			uart_puts("f=");
+
+			uart_puts("f="); // serial print for debugging
 			PrintNumber(f, 10, 7);
 			uart_puts("Hz, count=");
 			PrintNumber(count, 10, 6);
-			uart_puts("          \r");
+			uart_puts("          \n");
 		}
 		else
 		{
 			uart_puts("NO SIGNAL                     \r");
 		}
+
+		update_motors(1); // motor test code
 /*
         // Read serial values from JDY40
 		if(U1STAbits.URXDA)
 		{
 			SerialReceive1(buff, sizeof(buff)-1);
-			nums = numsfromstr(buff, nums); //Extract values from string
+			uart_puts(buff);
+			numsfromstr(buff, nums); //Extract values from string
+			PrintNumber(nums[0],10,1);
+			PrintNumber(nums[1],10,3);
+			PrintNumber(nums[2],10,3);
 			SendInt(f,10,6); // Transmit frequency value
 		}
+		numsfromstr("mode:1x:30y:50", nums);
+		PrintNumber(nums[0],10,1);
+		PrintNumber(nums[1],10,3);
+		PrintNumber(nums[2],10,3);
 
         ISR_pwm1 = nums[1]*20; //Power percentage converted to PWM power value
         ISR_pwm2 = nums[2]*20; //
@@ -498,21 +511,6 @@ void main(void)
         // update motor operation mode
         update_motors(mode);
 */
-		count=GetPeriod(100); // Get period of 100 wave cycles
-		if(count>0)
-		{
-			f=((SYSCLK/2L)*100L)/count; // Convert period units to Hz
-			uart_puts("f=");
-			PrintNumber(f, 10, 7);
-			uart_puts("Hz, count=");
-			PrintNumber(count, 10, 6);
-			uart_puts("          \r");
-		}
-		else
-		{
-			uart_puts("NO SIGNAL                     \r");
-		}
-
         // If the controller requests a frequency read, send it
 		waitms(200);
 	}
