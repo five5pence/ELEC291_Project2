@@ -461,7 +461,7 @@ void main (void)
 {
 	float pwmR;
 	float pwmL;
-	int mode; // forwards and reverse travel 0=back, 1=front
+	int mode=1;
 	
 	float JS[2]; //for joystick
 	
@@ -503,53 +503,95 @@ void main (void)
 		JS[0] = Volts_at_Pin(QFP32_MUX_P2_2); //VRX
 		JS[1] = Volts_at_Pin(QFP32_MUX_P2_3); //VRY	
 		
-		//For speaker
-		TR2=0; // Stop timer 2
-		
-		TMR2RL=0x10000L-x; // Change reload value for new frequency
-		TR2=1; // Start timer 2
+	
 		
 		//At the origin or no motion coordinate system will be set as (vry,vrx) because joystick is rotated on the board
 		//pwm1 is right motor
 		//pwm2 is left motor
 		
 		
-		if (JS[0]>1.71)//going forward
+		if (JS[0]>1.75)//going forward
 		{
-			pwmR=(JS[0]-1.70)/0.01604;
-			pwmL=(JS[0]-1.70)/0.01604;
+			TR2=0;
 			mode=1;
-		}
-		else if(JS[1]>1.73) //for going right
-			{
-			pwmL=(JS[1]-1.72)/0.01604;
-			pwmR=0.0;
+			if(JS[1]>1.75){
+				pwmL=(JS[1]-1.72)/0.01604;
+				pwmR=100.0-pwmL;
+				LCDprint("Turning right",1,1);
+			}else if (JS[1]<1.6){
+				pwmR=100.0-(JS[1]-0.01604)/0.01604;
+				pwmL=100.0-pwmR;
+				LCDprint("Turning left",1,1);
+			}else{
+				pwmR=(JS[0]-1.70)/0.01604;
+				pwmL=(JS[0]-1.70)/0.01604;
+				LCDprint("Going forward",1,1);
 			}
-		
-		else if (JS[1]<1.68) //for going left
+			
+		}else if (JS[0]<1.6) //for going backwards
 			{
-			pwmR=100.0-(JS[1]-0.041)/0.01604;
-			pwmL=0.0;
-			}
-		else if (JS[0]<1.69) //for going backwards
-			{
-			pwmR=(1.71-JS[0])/0.01604;
-			pwmL=(1.71-JS[0])/0.01604;
+			TR2=1;
+			TMR2RL=0x10000L-x;
 			mode=0;
+			if(JS[1]>1.75){
+				pwmL=(JS[1]-1.72)/0.01604;
+				pwmR=100.0-pwmL;
+				LCDprint("Turning right",1,1);
+			}else if (JS[1]<1.6){
+				pwmR=100.0-(JS[1]-0.01604)/0.01604;
+				pwmL=100.0-pwmR;
+				LCDprint("Turning left",1,1);
+			}else{
+				pwmR=(1.7-JS[0])/0.01604;
+				pwmL=(1.7-JS[0])/0.01604;
+				LCDprint("Reversing",1,1);
+				
 			}
-		else{ //at rest
+		}else if(JS[1]>1.75){
+			
+				pwmL=(JS[1]-1.72)/0.01604;
+				pwmR=100.0-pwmL;
+				LCDprint("Turning right",1,1);
+		
+		}else if (JS[1]<1.6){
+				pwmR=100.0-(JS[1]-0.041)/0.01604;
+				pwmL=100.0-pwmR;
+				LCDprint("Turning left",1,1);
+		
+		}else{
+			pwmR=0.0;
 			pwmL=0.0;
+			LCDprint("At rest",1,1);
+			TR2=0;
+			
+		}	
+		
+		if(pwmR>100){
+			pwmR=100.0;
+		}
+		if(pwmL>100){
+			pwmL=100.0;
+		}
+		if (pwmR<0){
 			pwmR=0.0;
 			}
+		if (pwmL<0){
+			pwmL=0.0;
+		}
 		
-		printf("pwmR: %.3f pwmL: %.3f , mode:%d \r\n", pwmR,pwmL,mode);
-		//sprintf(buff, "pwmR: %.0f pwmL: %.0f \r\n", pwmR,pwmL);
-		//sendstr1(buff);
+		printf("mode:%d pwmR:%.0f pwmL: %.0f  \r\n",mode,pwmR,pwmL);
+		sprintf(buff, "pwmR: %.0f pwmL: %.0f \r\n", mode, pwmR,pwmL);
+		sendstr1(buff);
 		waitms_or_RI1(200);
 		
 		if(RXU1())
 		{
 			getstr1(buff);
+				//For speaker
+			TR2=0; // Stop timer 2
+		
+			TMR2RL=0x10000L-x; // Change reload value for new frequency
+			TR2=1; // Start timer 2
 			printf("RX: %s\r\n", buff);
 		}
 	}
