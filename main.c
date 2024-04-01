@@ -477,8 +477,11 @@ void main(void)
 		if(U1STAbits.URXDA) // Something has arrived
 		{
 			SerialReceive1(buff, sizeof(buff)-1);
-            numsfromstr(buff, num);
-			printf("\nRX: %d %d %d\r\n", num[0], num[1], num[2]);
+            if(strlen(buff)==7){  //buffer format is mode(1)pwmr(3)pwml(3) no spaces
+				numsfromstr(buff, num);
+				printf("\nRX: %d %d %d\r\n", num[0], num[1], num[2]);
+			}
+			
 		}
 	}
 }
