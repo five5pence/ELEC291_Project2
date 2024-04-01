@@ -118,6 +118,10 @@ void ConfigurePins(void)
 	//ANSELB &= ~(1<<5); // Set RB5 as a digital I/O (pin 14 of DIP28)
     //TRISB |= (1<<5);   // configure pin RB5 as input
     //CNPUB |= (1<<5);   // Enable pull-up resistor for RB5
+	// RB14 is connected to the 'SET' pin of the JDY40.  Configure as output:
+    ANSELB &= ~(1<<14); // Set RB14 as a digital I/O
+    TRISB &= ~(1<<14);  // configure pin RB14 as output
+	LATB |= (1<<14);    // 'SET' pin of JDY40 to 1 is normal operation mode
     
     // Configure output pins
 	TRISBbits.TRISB0 = 0; // pin  4 of DIP28
@@ -454,12 +458,28 @@ void main(void)
 	char buff[80];
 	int nums[3];
 
+	DDPCON = 0;
 	CFGCON = 0;
   
     UART2Configure(115200);  // Configure UART2 for a baud rate of 115200
     UART1Configure(9600); // Configure UART1 to read serial values from the JDY40
     SetupTimer1();
 	ConfigurePins();
+
+// Initialize JDY40
+	// We should select an unique device ID.  The device ID can be a hex
+	// number from 0x0000 to 0xFFFF.  In this case is set to 0xABBA
+	printf("Initialising JDY40...");
+	SendATCommand("AT+DVIDBABA\r\n");  
+
+	// To check configuration
+	SendATCommand("AT+VER\r\n");
+	SendATCommand("AT+BAUD\r\n");
+	SendATCommand("AT+RFID\r\n");
+	SendATCommand("AT+DVID\r\n");
+	SendATCommand("AT+RFC\r\n");
+	SendATCommand("AT+POWE\r\n");
+	SendATCommand("AT+CLSS\r\n");
     
     waitms(500); // Give PuTTY time to start
 	uart_puts("\x1b[2J\x1b[1;1H"); // Clear screen using ANSI escape sequence.
@@ -483,23 +503,34 @@ void main(void)
 		}
 		else
 		{
-			uart_puts("NO SIGNAL                     \r");
+			uart_puts("NO FREQUENCY ON PIN14                     \r");
 		}
 
 		update_motors(1); // motor test code
-/*
+
         // Read serial values from JDY40
 		if(U1STAbits.URXDA)
 		{
+			uart_puts("\nVALID SIGNAL\r\n");
 			SerialReceive1(buff, sizeof(buff)-1);
-			uart_puts(buff);
+
+			//uart_puts(buff);
+			printf("RX: %s\r\n", buff);
+			/*
 			numsfromstr(buff, nums); //Extract values from string
 			PrintNumber(nums[0],10,1);
 			PrintNumber(nums[1],10,3);
 			PrintNumber(nums[2],10,3);
 			SendInt(f,10,6); // Transmit frequency value
+			*/
 		}
-		numsfromstr("mode:1x:30y:50", nums);
+		else
+		{
+			uart_puts("NO SIGNAL							\r");
+		}
+
+		/*
+		numsfromstr("mode:1x:030y:050", nums);
 		PrintNumber(nums[0],10,1);
 		PrintNumber(nums[1],10,3);
 		PrintNumber(nums[2],10,3);
