@@ -36,7 +36,7 @@
 #pragma config FPLLODIV = DIV_2     // Divide After PLL (now 40 MHz) 
 #pragma config FWDTEN = OFF         // Watchdog Timer Disabled
 #pragma config FPBDIV = DIV_1       // PBCLK = SYCLK
-#pragma config FSOSCEN = OFF        // Turn off secondary oscillator on A4 and B4
+//#pragma config FSOSCEN = OFF        // Turn off secondary oscillator on A4 and B4
 
 // Defines
 #define SYSCLK 40000000L
@@ -457,6 +457,7 @@ void main(void)
     unsigned char mode = 0;
 	char buff[80];
 	int nums[3];
+	int j = 0;
 
 	DDPCON = 0;
 	CFGCON = 0;
@@ -483,9 +484,9 @@ void main(void)
     
     waitms(500); // Give PuTTY time to start
 	uart_puts("\x1b[2J\x1b[1;1H"); // Clear screen using ANSI escape sequence.
-	uart_puts("\r\nPIC32 Robot Test\r\n");
+	uart_puts("\rPIC32 Robot Test\r\n");
 	while(1)
-	{
+	{/*
 		count=GetPeriod(100); // Get period of 100 wave cycles
 		if (count > 22000){
 			count=GetPeriod(100); // If invalid, measure again
@@ -504,18 +505,24 @@ void main(void)
 		else
 		{
 			uart_puts("NO FREQUENCY ON PIN14                     \r");
-		}
+		}*/
 
 		update_motors(1); // motor test code
 
         // Read serial values from JDY40
 		if(U1STAbits.URXDA)
 		{
-			uart_puts("\nVALID SIGNAL\r\n");
-			SerialReceive1(buff, sizeof(buff)-1);
+			__builtin_disable_interrupts();
 
+			uart_puts("\nVALID SIGNAL\r\n");
+
+			j=SerialReceive1(buff, 10); //program gets stuck here for some reason
+			
+			PrintNumber(j, 10, 2);
 			//uart_puts(buff);
-			printf("RX: %s\r\n", buff);
+			uart_puts(buff);
+
+			__builtin_enable_interrupts();
 			/*
 			numsfromstr(buff, nums); //Extract values from string
 			PrintNumber(nums[0],10,1);
@@ -526,8 +533,9 @@ void main(void)
 		}
 		else
 		{
-			uart_puts("NO SIGNAL							\r");
+			uart_puts("\nNO SIGNAL							\r");
 		}
+
 
 		/*
 		numsfromstr("mode:1x:030y:050", nums);
