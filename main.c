@@ -34,212 +34,10 @@
 
 // Defines
 #define SYSCLK 40000000L
-#define FREQ 100000L
+#define DEF_FREQ 16000L
 #define Baud2BRG(desired_baud)( (SYSCLK / (16*desired_baud))-1)
 #define Baud1BRG(desired_baud)( (SYSCLK / (16*desired_baud))-1)
-
-#define PIN_PERIOD (PORTB&(1<<5))
-volatile int ISR_pwm1=1000, ISR_pwm2=1000, ISR_cnt=0;
-unsigned char motor_con[4];
-
-void __ISR(_TIMER_1_VECTOR, IPL5SOFT) Timer1_Handler(void)
-{
- 	IFS0CLR=_IFS0_T1IF_MASK; // Clear timer 1 interrupt flag, bit 4 of IFS0
-
-	ISR_cnt++; // Increment ISR counter every time interrupt occurs
-	if(ISR_cnt==ISR_pwm1)
-	{
-		LATBbits.LATB0 = 0; // When ISR hits pwm value, set to zero
-        LATBbits.LATB1 = 0;
-	}
-	if(ISR_cnt==ISR_pwm2)
-	{
-		LATBbits.LATB2 = 0; // refer to comment above
-        LATBbits.LATB3 = 0;
-	}
-	if(ISR_cnt>=2000) // Reset ISR count every 20ms, drive motor pins high
-	{
-		ISR_cnt=0; // 2000 * 10us=20ms
-        // drive pins to motor_con vector values
-        LATBbits.LATB0 = motor_con[0];
-        LATBbits.LATB1 = motor_con[1];
-        LATBbits.LATB2 = motor_con[2];
-        LATBbits.LATB3 = motor_con[3];
-	}   
-}
-
-void SetupTimer1 (void)
-{
-	// Explanation here: https://www.youtube.com/watch?v=bu6TTZHnMPY
-	__builtin_disable_interrupts();
-	PR1 =(SYSCLK/FREQ)-1; // since SYSCLK/FREQ = PS*(PR1+1)
-	TMR1 = 0;
-	T1CONbits.TCKPS = 0; // 3=1:256 prescale value, 2=1:64 prescale value, 1=1:8 prescale value, 0=1:1 prescale value
-	T1CONbits.TCS = 0; // Clock source
-	T1CONbits.ON = 1;
-	IPC1bits.T1IP = 5;
-	IPC1bits.T1IS = 0;
-	IFS0bits.T1IF = 0;
-	IEC0bits.T1IE = 1;
-	
-	INTCONbits.MVEC = 1; //Int multi-vector
-	__builtin_enable_interrupts();
-}
-
-void update_motors (char control_flags)
-{
-        if (control_flags==1) //two forward
-        {
-            motor_con[0] = 1;
-            motor_con[1] = 0;
-            motor_con[2] = 1;
-            motor_con[3] = 0;
-        }
-        else if (control_flags==2) //two reverse
-        {
-            motor_con[0] = 0;
-            motor_con[1] = 1;
-            motor_con[2] = 0;
-            motor_con[3] = 1;
-        }
-        else if (control_flags==3) //CW rotation
-        {
-            motor_con[0] = 1;
-            motor_con[1] = 0;
-            motor_con[2] = 0;
-            motor_con[3] = 1;
-        }
-        else if (control_flags==4) //CCW rotation
-        {
-            motor_con[0] = 0;
-            motor_con[1] = 1;
-            motor_con[2] = 1;
-            motor_con[3] = 0;
-        }
-        else //default case no motion
-        {
-            motor_con[0] = 0;
-            motor_con[1] = 0;
-            motor_con[2] = 0;
-            motor_con[3] = 0;
-        }
-}
-
-void ConfigurePins(void)
-{   
-	// Configure digital input pin to measure signal period
-	//ANSELB &= ~(1<<5); // Set RB5 as a digital I/O (pin 14 of DIP28)
-    //TRISB |= (1<<5);   // configure pin RB5 as input
-    //CNPUB |= (1<<5);   // Enable pull-up resistor for RB5
-	// RB14 is connected to the 'SET' pin of the JDY40.  Configure as output:
-    ANSELB &= ~(1<<14); // Set RB14 as a digital I/O
-    TRISB &= ~(1<<14);  // configure pin RB14 as output
-	LATB |= (1<<14);    // 'SET' pin of JDY40 to 1 is normal operation mode
-    
-    // Configure output pins
-	TRISBbits.TRISB0 = 0; // pin  4 of DIP28
-	TRISBbits.TRISB1 = 0; // pin  5 of DIP28
-	TRISBbits.TRISB2 = 0; // pin  6 of DIP28
-	TRISBbits.TRISB3 = 0; // pin  7 of DIP28
-
-	//INTCONbits.MVEC = 1;
-}
-
-long int GetPeriod (int n)
-{
-	int i;
-	unsigned int saved_TCNT1a, saved_TCNT1b;
-	
-    _CP0_SET_COUNT(0); // resets the core timer count
-	while (PIN_PERIOD!=0) // Wait for square wave to be 0
-	{
-		if(_CP0_GET_COUNT() > (SYSCLK/8)) return 0; // Core timer increments every 2 SYSCLK cycles, return 0 if more than 10*10^6 clk cycles elapse
-	}
-
-    _CP0_SET_COUNT(0); // resets the core timer count
-	while (PIN_PERIOD==0) // Wait for square wave to be 1
-	{
-		if(_CP0_GET_COUNT() > (SYSCLK/8)) return 0;
-	}
-	
-    _CP0_SET_COUNT(0); // resets the core timer count
-	for(i=0; i<n; i++) // Measure the time of 'n' periods
-	{
-		while (PIN_PERIOD!=0) // Wait for square wave to be 0
-		{
-			if(_CP0_GET_COUNT() > (SYSCLK/8)) return 0;
-		}
-		while (PIN_PERIOD==0) // Wait for square wave to be 1
-		{
-			if(_CP0_GET_COUNT() > (SYSCLK/8)) return 0;
-		}
-	}
-
-	return  _CP0_GET_COUNT();
-}
-
-void numsfromstr (char *string, int buffer[])
-{
-	int i;
-	int j = 0;
-	char temp[8]; //temporary number storage buffer
-
-	//clear buffer
-	buffer[0] = 0;
-	buffer[1] = 0;
-	buffer[2] = 0;
-	// scan length of string
-	do
-	{
-		if ((string[i] - '0' >= 0) && (string[i] - '0' <= 9)) //ASCII number detection
-		{
-			// put value into a char array if the value is an int
-			temp[j] = string[i];
-			j++;
-		}
-		i++; //increment through string
-	}
-	while (string[i] != '\0');
-
-	//temp[j+1] = '/0'; //terminate temp to make it a proper string
-
-	buffer[0] = (temp[0] - '0'); // cast chars to int values
-	buffer[1] += (temp[1]-'0')*100;
-	buffer[1] += (temp[2]-'0')*10;
-	buffer[1] += (temp[3]-'0');
-	buffer[2] += (temp[4]-'0')*100;
-	buffer[2] += (temp[5]-'0')*10;
-	buffer[2] += (temp[6]-'0');
-}
-
-// Print string to UART
-void uart_puts(char * s)
-{
-	while(*s)
-	{
-		putchar(*s);
-		s++;
-	}
-}
-
-char HexDigit[]="0123456789ABCDEF";
-void PrintNumber(long int val, int Base, int digits)
-{ 
-	int j;
-	#define NBITS 32
-	char buff[NBITS+1];
-	buff[NBITS]=0;
-
-	j=NBITS-1;
-	while ( (val>0) | (digits>0) )
-	{
-		buff[j--]=HexDigit[val%Base];
-		val/=Base;
-		if(digits!=0) digits--;
-	}
-	uart_puts(&buff[j+1]);
-}
-
+ 
 void UART2Configure(int baud_rate)
 {
     // Peripheral Pin Select
@@ -401,16 +199,14 @@ void main(void)
 {
 	char buff[80];
     int cnt=0;
-    int num[3];
+    char *c;
     
 	DDPCON = 0;
 	CFGCON = 0;
   
     UART2Configure(115200);  // Configure UART2 for a baud rate of 115200
     UART1Configure(9600);  // Configure UART1 to communicate with JDY40 with a baud rate of 9600
-    ConfigurePins();
-    SetupTimer1();
-
+ 
 	delayms(500); // Give putty time to start before we send stuff.
     printf("JDY40 test program.\r\n");
 
@@ -421,7 +217,7 @@ void main(void)
 
 	// We should select an unique device ID.  The device ID can be a hex
 	// number from 0x0000 to 0xFFFF.  In this case is set to 0xABBA
-	SendATCommand("AT+DVIDBABA\r\n");  
+	SendATCommand("AT+DVIDBCBA\r\n");  
 
 	// To check configuration
 	SendATCommand("AT+VER\r\n");
@@ -438,50 +234,24 @@ void main(void)
  	
 	printf("\r\nPress and hold a push-button attached to RB6 (pin 15) to transmit.\r\n");
 	
-    update_motors(0);
-
 	cnt=0;
 	while(1)
 	{
-        // Period reading
-        count=GetPeriod(10); // Get period of 100 wave cycles
-		if (count > 2200){
-			count=GetPeriod(10); // If invalid, measure again
-		}
-
-		if(count>0)
-		{
-			f=((SYSCLK/2L)*10L)/count; // Convert period units to Hz
-
-			uart_puts("f="); // serial print for debugging
-			PrintNumber(f, 10, 7);
-			uart_puts("Hz, count=");
-			PrintNumber(count, 10, 6);
-			uart_puts("          \n");
-		}
-		else
-		{
-			uart_puts("NO FREQUENCY ON PIN14                     \r");
-		}
-
-        // Serial Transmission
-		if((PORTB&(1<<6))==0) //change to master-slave conditional
+		/*if((PORTB&(1<<6))==0)
 		{
 			sprintf(buff, "JDY40 test %d\r\n", cnt++);
 			SerialTransmit1(buff);
 			printf(".");
 			delayms(200);
-		}
-
-        // Serial input
+		}*/
+		
 		if(U1STAbits.URXDA) // Something has arrived
 		{
-			SerialReceive1(buff, sizeof(buff)-1);
-            if(strlen(buff)==7){  //buffer format is mode(1)pwmr(3)pwml(3) no spaces
-				numsfromstr(buff, num);
-				printf("\nRX: %d %d %d\r\n", num[0], num[1], num[2]);
-			}
 			
+				SerialReceive1(buff, sizeof(buff)-1);
+				if (strlen(buff)==7){
+				printf("RX: %s\r\n", buff);
+				}
 		}
 	}
 }
