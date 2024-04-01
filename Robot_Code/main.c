@@ -38,7 +38,7 @@
 #define Baud2BRG(desired_baud)( (SYSCLK / (16*desired_baud))-1)
 #define Baud1BRG(desired_baud)( (SYSCLK / (16*desired_baud))-1)
 
-volatile int ISR_pwm1=1000, ISR_pwm2=1000, ISR_cnt=0;
+volatile int ISR_pwm1=1000, ISR_pwm2=1000, ISR_cnt=0; // Declared variables as volatile, since they can be changed independent on normal code operation
 unsigned char motor_con[4];
 
 void __ISR(_TIMER_1_VECTOR, IPL5SOFT) Timer1_Handler(void)
@@ -285,6 +285,7 @@ void main(void)
 {
 	char buff[80];
     int cnt=0;
+    char *c;
     
 	DDPCON = 0;
 	CFGCON = 0;
@@ -302,7 +303,7 @@ void main(void)
 
 	// We should select an unique device ID.  The device ID can be a hex
 	// number from 0x0000 to 0xFFFF.  In this case is set to 0xABBA
-	SendATCommand("AT+DVIDBABA\r\n");  
+	SendATCommand("AT+DVIDBCBA\r\n");  
 
 	// To check configuration
 	SendATCommand("AT+VER\r\n");
@@ -313,29 +314,32 @@ void main(void)
 	SendATCommand("AT+POWE\r\n");
 	SendATCommand("AT+CLSS\r\n");
 
+    update_motors(1);
+
     ANSELB &= ~(1<<6); // Set RB6 as a digital I/O
     TRISB |= (1<<6);   // configure pin RB6 as input
     CNPUB |= (1<<6);   // Enable pull-up resistor for RB6
  	
 	printf("\r\nPress and hold a push-button attached to RB6 (pin 15) to transmit.\r\n");
 	
-    update_motors(0);
-    
 	cnt=0;
 	while(1)
 	{
-		if((PORTB&(1<<6))==0)
+		/*if((PORTB&(1<<6))==0)
 		{
 			sprintf(buff, "JDY40 test %d\r\n", cnt++);
 			SerialTransmit1(buff);
 			printf(".");
 			delayms(200);
-		}
+		}*/
+		
 		if(U1STAbits.URXDA) // Something has arrived
 		{
 			
-			SerialReceive1(buff, sizeof(buff)-1);
-			printf("RX: %s\r\n", buff);
+				SerialReceive1(buff, sizeof(buff)-1);
+				if (strlen(buff)==7){
+				printf("RX: %s\r\n", buff);
+				}
 		}
 	}
 }
