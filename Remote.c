@@ -26,6 +26,9 @@
 #define BAUDRATE 115200L
 #define SARCLK 18000000L
 
+#define MAX_FREQ 35000L
+#define MIN_FREQ 27000L
+
 idata char buff[20];
 
 
@@ -462,9 +465,12 @@ void main (void)
 	float pwmR;
 	float pwmL;
 	int mode=1;
-	int buttonpress=0;
+	int disp=0;
 	int j;
-	
+	int interval = (MAX_FREQ-MIN_FREQ)/16;
+	int freq;
+	char buff[8];
+		
 	float JS[2]; //for joystick
 	
 	
@@ -581,10 +587,10 @@ void main (void)
 			pwmL=0.0;
 		}
 		
-		printf("mode:%d pwmR:%.0f pwmL: %.0f  \r\n",mode,pwmR,pwmL);
-		sprintf(buff, "pwmR: %.0f pwmL: %.0f \r\n", mode, pwmR,pwmL);
+		//printf("mode:%d pwmR:%.0f pwmL: %.0f  \r\n",mode,pwmR,pwmL);
+		//sprintf(buff, "pwmR: %.0f pwmL: %.0f \r\n", mode, pwmR,pwmL);
 		sendstr1(buff);
-		waitms_or_RI1(200);
+		//waitms_or_RI1(200);
 		
 		if(RXU1())
 		{
@@ -596,15 +602,24 @@ void main (void)
 			TR2=1; // Start timer 2
 			printf("RX: %s\r\n", buff);
 		}
-		LCDprint("ooooooo",2,1);
+		/*
 		if(buttonpress > 7){
 			buttonpress = 0;
 		}
 		if (P3_1 == 0){
 			buttonpress++;
+		}*/
+		disp = (freq-MIN_FREQ)/interval; //freq is a placeholder value for the f received from the PIC32
+		for(j = 0; j<7; j++)
+		{
+			if (j < buttonpress){
+				buff[j] = 'O';
+			}
+			else {
+				buff[j] = 'o';
+			}	
 		}
-		for(j = 1; j<buttonpress+1; j++){
-			LCDprint("O",2,j);
-		}
+		buff[7] = '\0';
+		LCDprint(buff, 2,1);
 	}
 }
