@@ -587,8 +587,8 @@ void main (void)
 			pwmL=0.0;
 		}
 		
-		//printf("mode:%d pwmR:%.0f pwmL: %.0f  \r\n",mode,pwmR,pwmL);
-		//sprintf(buff, "pwmR: %.0f pwmL: %.0f \r\n", mode, pwmR,pwmL);
+		printf("mode:%d pwmR:%.0f pwmL: %.0f  \r\n",mode,pwmR,pwmL);
+		sprintf(buff, "pwmR: %.0f pwmL: %.0f \r\n", mode, pwmR,pwmL);
 		sendstr1(buff);
 		//waitms_or_RI1(200);
 		
@@ -612,10 +612,10 @@ void main (void)
 		disp = (freq-MIN_FREQ)/interval; //freq is a placeholder value for the f received from the PIC32
 		for(j = 0; j<7; j++)
 		{
-			if (j < buttonpress){
+			if (j < disp){ // Prints big 'O's on the LCD until appropriate level is displayed
 				buff[j] = 'O';
 			}
-			else {
+			else { // Fill the rest with small 'o's
 				buff[j] = 'o';
 			}	
 		}

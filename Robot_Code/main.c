@@ -40,7 +40,7 @@
 
 #define PIN_PERIOD (PORTB&(1<<5))
 
-volatile int ISR_pwm1=1000, ISR_pwm2=1000, ISR_cnt=0; // Declared variables as volatile, since they can be changed independent on normal code operation
+volatile int ISR_pwm1=50, ISR_pwm2=50, ISR_cnt=0; // Declared variables as volatile, since they can be changed independent on normal code operation
 unsigned char motor_con[4];
 
 void __ISR(_TIMER_1_VECTOR, IPL5SOFT) Timer1_Handler(void)
@@ -124,40 +124,6 @@ void update_motors (char control_flags)
             motor_con[2] = 0;
             motor_con[3] = 0;
         }
-}
-
-void numsfromstr (char *string, int buffer[])
-{
-	int i;
-	int j = 0;
-	char temp[8]; //temporary number storage buffer
-
-	//clear buffer
-	buffer[0] = 0;
-	buffer[1] = 0;
-	buffer[2] = 0;
-	// scan length of string
-	do
-	{
-		if (((string[i] - '0') >= 0) && ((string[i] - '0') <= 9)) //ASCII number detection
-		{
-			// put value into a char array if the value is an int
-			temp[j] = string[i];
-			j++;
-		}
-		i++; //increment through string
-	}
-	while (string[i] != '\0');
-
-	//temp[j+1] = '/0'; //terminate temp to make it a proper string
-
-	buffer[0] = (temp[0] - '0'); // cast chars to int values
-	buffer[1] += (temp[1]-'0')*100;
-	buffer[1] += (temp[2]-'0')*10;
-	buffer[1] += (temp[3]-'0');
-	buffer[2] += (temp[4]-'0')*100;
-	buffer[2] += (temp[5]-'0')*10;
-	buffer[2] += (temp[6]-'0');
 }
 
 // Print string to UART
@@ -406,7 +372,7 @@ void main(void)
     int mode = 0;
     int count, f;
     char *c;
-    int num[3];
+    int num1,num2,num3;
     
 	DDPCON = 0;
 	CFGCON = 0;
@@ -414,8 +380,9 @@ void main(void)
     UART2Configure(115200);  // Configure UART2 for a baud rate of 115200
     UART1Configure(9600);  // Configure UART1 to communicate with JDY40 with a baud rate of 9600
     SetupTimer1();
+    ConfigurePins();
 	delayms(500); // Give putty time to start before we send stuff.
-    printf("JDY40 test program.\r\n");
+    //printf("JDY40 test program.\r\n");
 
 	// RB14 is connected to the 'SET' pin of the JDY40.  Configure as output:
     ANSELB &= ~(1<<14); // Set RB14 as a digital I/O
@@ -424,7 +391,7 @@ void main(void)
 
 	// We should select an unique device ID.  The device ID can be a hex
 	// number from 0x0000 to 0xFFFF.  In this case is set to 0xABBA
-	SendATCommand("AT+DVIDBCBA\r\n");  
+	SendATCommand("AT+DVID9B9A\r\n");  
 
 	// To check configuration
 	SendATCommand("AT+VER\r\n");
@@ -439,45 +406,92 @@ void main(void)
     TRISB |= (1<<6);   // configure pin RB6 as input
     CNPUB |= (1<<6);   // Enable pull-up resistor for RB6
  	
-	printf("\r\nPress and hold a push-button attached to RB6 (pin 15) to transmit.\r\n");
-	update_motors(1);
-
+	//printf("\r\nPress and hold a push-button attached to RB6 (pin 15) to transmit.\r\n");
+	
 	while(1)
 	{
-        /*
-        count=GetPeriod(1); // Get period of 100 wave cycles
-		if (count > 220){
-			count=GetPeriod(1); // If invalid, measure again
+	
+		
+		/*count=GetPeriod(100); // Get period of 100 wave cycles
+		
+		
+		if (count > 22000){
+			count=GetPeriod(100); // If invalid, measure again
 		}
 
 		if(count>0)
 		{
-			f=(SYSCLK/2L)/count; // Convert period units to Hz
+			f=((SYSCLK/2L)*100L)/count; // Convert period units to Hz
 
 			uart_puts("f="); // serial print for debugging
 			PrintNumber(f, 10, 7);
-			uart_puts("          \n\r");
+			uart_puts("Hz, count=");
+			PrintNumber(count, 10, 6);
+			uart_puts("          \n");
+		}
+		else
+		{
+			uart_puts("NO FREQUENCY ON PIN14                     \r");
 		}*/
 		
-		if(U1STAbits.URXDA) // Something has arrived
+        // Read serial values from JDY40
+		if(U1STAbits.URXDA)
 		{
-			
-				SerialReceive1(buff, sizeof(buff)-1);
-                
-				if (strlen(buff)==7){
-                // numsfromstr(buff, num);
-                //mode = num[0];
-                //ISR_pwm1 = num[1]*20; //Power percentage converted to PWM power value
-                //ISR_pwm2 = num[2]*20;
-				printf("RX: %d %d %d\r\n", num[0], num[1], num[2]);
-                printf("RX: %s\r\n", buff);
-				}
-                /*if((strlen(buff)==1)
-		        {
-                    itoa(f, buff, 10); //convert f to string and send 
-			        SerialTransmit1(buff);
-			        delayms(200);
-		        }*/
+				//printf("y");
+			SerialReceive1(buff, sizeof(buff)-1);
+			if (strlen(buff)==9){
+				num1=atoi(&buff[0]);
+				num2=atoi(&buff[2]);
+				num3=atoi(&buff[6]);
+				//PrintNumber(num2,10,3);
+				//PrintNumber(num1,10,1);
+			}
+	/*		else if (strlen(buff)==1) // Calc & transmit f value if commanded to
+			{
+			count=GetPeriod(100); // Get period of 100 wave cycles
+
+			if (count > 22000){
+				count=GetPeriod(100); // If invalid, measure again
+			}
+
+			if(count>0)
+			{
+				f=((SYSCLK/2L)*100L)/count; // Convert period units to Hz
+
+				uart_puts("f="); // serial print for debugging
+				PrintNumber(f, 10, 7);
+				uart_puts("Hz, count=");
+				PrintNumber(count, 10, 6);
+				uart_puts("          \n");
+			}
+			SendInt(f,10,6); // Transmit frequency value
+			}*/
 		}
+        ISR_pwm1 = num2*20; //Power percentage converted to PWM power value ---> This is the right motor
+        ISR_pwm2 = num3*20; //
+        mode = num1; //placeholder, should be mode field of JDY40 read
+		printf("%d",mode);
+        // update motor operation mode
+        update_motors(mode);
 	}
 }
+/*
+PIC32 Pinout (Robot Components)
+                                          --------
+                                   MCLR -|1     28|- AVDD 
+  VREF+/CVREF+/AN0/C3INC/RPA0/CTED1/RA0 -|2     27|- AVSS 
+        VREF-/CVREF-/AN1/RPA1/CTED2/RA1 -|3     26|- JDY40 RXD
+                           Left Motor F -|4     25|- JDY40 SET
+                           Left Motor R -|5     24|- JDY40 TXD
+                          Right Motor F -|6     23|- AN12/PMD0/RB12
+                          Right Motor R -|7     22|- PGEC2/TMS/RPB11/PMD1/RB11
+                                    VSS -|8     21|- PGED2/RPB10/CTED11/PMD2/RB10
+                     OSC1/CLKI/RPA2/RA2 -|9     20|- VCAP
+                OSC2/CLKO/RPA3/PMA0/RA3 -|10    19|- VSS
+                         SOSCI/RPB4/RB4 -|11    18|- TDO/RPB9/SDA1/CTED4/PMD3/RB9
+         SOSCO/RPA4/T1CK/CTED9/PMA1/RA4 -|12    17|- TCK/RPB8/SCL1/CTED10/PMD4/RB8
+                                    VDD -|13    16|- TDI/RPB7/CTED3/PMD5/INT0/RB7
+                     Period Measurement -|14    15|- JDY40 BOOT (transmit data)
+                                          --------
+28.6kHz - 40kHz range of frequency
+*/
