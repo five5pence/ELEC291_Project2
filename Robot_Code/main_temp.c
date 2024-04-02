@@ -1,13 +1,8 @@
-/*
-    Modified version of Robot_Base.c from the PIC32 makefiles for Project 2
-*/
-
 #include <XC.h>
 #include <sys/attribs.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-// #include "JDY40.h"
 
 /* Pinout for DIP28 PIC32MX130:
                                           --------
@@ -27,31 +22,26 @@
                     PGED3/RPB5/PMD7/RB5 -|14    15|- PGEC3/RPB6/PMD6/RB6
                                           --------
 */
-
  
 // Configuration Bits (somehow XC32 takes care of this)
 #pragma config FNOSC = FRCPLL       // Internal Fast RC oscillator (8 MHz) w/ PLL
 #pragma config FPLLIDIV = DIV_2     // Divide FRC before PLL (now 4 MHz)
 #pragma config FPLLMUL = MUL_20     // PLL Multiply (now 80 MHz)
-#pragma config FPLLODIV = DIV_2     // Divide After PLL (now 40 MHz) 
+#pragma config FPLLODIV = DIV_2     // Divide After PLL (now 40 MHz)
+ 
 #pragma config FWDTEN = OFF         // Watchdog Timer Disabled
 #pragma config FPBDIV = DIV_1       // PBCLK = SYCLK
-//#pragma config FSOSCEN = OFF        // Turn off secondary oscillator on A4 and B4
 
 // Defines
 #define SYSCLK 40000000L
-#define FREQ 100000L // We need the ISR for timer 1 every 10 us
+#define FREQ 100000L
 #define Baud2BRG(desired_baud)( (SYSCLK / (16*desired_baud))-1)
 #define Baud1BRG(desired_baud)( (SYSCLK / (16*desired_baud))-1)
 
-// Measure pin period at pin 14 (RB5)
-#define PIN_PERIOD (PORTB&(1<<5)) // Set bit 5 of PORTB SFR
+#define PIN_PERIOD (PORTB&(1<<5))
 
-volatile int ISR_pwm1=1000, ISR_pwm2=1000, ISR_cnt=0; // Declared variables as volatile, since they can be changed independent on normal code operation
-unsigned char motor_con[4]; //vector to control pinout
-// The Interrupt Service Routine for timer 1 is used to generate one or more standard
-// hobby servo signals.  The servo signal has a fixed period of 20ms and a pulse width
-// between 0.6ms and 2.4ms.
+volatile int ISR_pwm1=0, ISR_pwm2=50, ISR_cnt=0; // Declared variables as volatile, since they can be changed independent on normal code operation
+unsigned char motor_con[4];
 
 void __ISR(_TIMER_1_VECTOR, IPL5SOFT) Timer1_Handler(void)
 {
@@ -96,48 +86,92 @@ void SetupTimer1 (void)
 	INTCONbits.MVEC = 1; //Int multi-vector
 	__builtin_enable_interrupts();
 }
-// Core timer information in section 2.2.3
-// Use the core timer to wait for 1 ms.
-void wait_1ms(void)
+
+void update_motors (char control_flags)
 {
-    unsigned int ui;
-    _CP0_SET_COUNT(0); // resets the core timer count
-
-    // get the core timer count
-    while ( _CP0_GET_COUNT() < (SYSCLK/(2*1000)) );
+        if (control_flags==1) //two forward
+        {
+            motor_con[0] = 1;
+            motor_con[1] = 0;
+            motor_con[2] = 1;
+            motor_con[3] = 0;
+        }
+        else if (control_flags==2) //two reverse
+        {
+            motor_con[0] = 0;
+            motor_con[1] = 1;
+            motor_con[2] = 0;
+            motor_con[3] = 1;
+        }
+        else if (control_flags==3) //CW rotation
+        {
+            motor_con[0] = 1;
+            motor_con[1] = 0;
+            motor_con[2] = 0;
+            motor_con[3] = 1;
+        }
+        else if (control_flags==4) //CCW rotation
+        {
+            motor_con[0] = 0;
+            motor_con[1] = 1;
+            motor_con[2] = 1;
+            motor_con[3] = 0;
+        }
+        else //default case no motion
+        {
+            motor_con[0] = 0;
+            motor_con[1] = 0;
+            motor_con[2] = 0;
+            motor_con[3] = 0;
+        }
 }
 
-void waitms(int len)
+void numsfromstr (char *string, int buffer[])
 {
-	while(len--) wait_1ms();
+	int i;
+	int j = 0;
+	char temp[8]; //temporary number storage buffer
+
+	//clear buffer
+	buffer[0] = 0;
+	buffer[1] = 0;
+	buffer[2] = 0;
+	// scan length of string
+	do
+	{
+		if (((string[i] - '0') >= 0) && ((string[i] - '0') <= 9)) //ASCII number detection
+		{
+			// put value into a char array if the value is an int
+			temp[j] = string[i];
+			j++;
+		}
+		i++; //increment through string
+	}
+	while (string[i] != '\0');
+
+	//temp[j+1] = '/0'; //terminate temp to make it a proper string
+
+	buffer[0] = (temp[0] - '0'); // cast chars to int values
+	buffer[1] += (temp[1]-'0')*100;
+	buffer[1] += (temp[2]-'0')*10;
+	buffer[1] += (temp[3]-'0');
+	buffer[2] += (temp[4]-'0')*100;
+	buffer[2] += (temp[5]-'0')*10;
+	buffer[2] += (temp[6]-'0');
 }
 
-void ConfigurePins(void)
-{   
-	// Configure digital input pin to measure signal period
-	//ANSELB &= ~(1<<5); // Set RB5 as a digital I/O (pin 14 of DIP28)
-    //TRISB |= (1<<5);   // configure pin RB5 as input
-    //CNPUB |= (1<<5);   // Enable pull-up resistor for RB5
-	// RB14 is connected to the 'SET' pin of the JDY40.  Configure as output:
-    ANSELB &= ~(1<<14); // Set RB14 as a digital I/O
-    TRISB &= ~(1<<14);  // configure pin RB14 as output
-	LATB |= (1<<14);    // 'SET' pin of JDY40 to 1 is normal operation mode
-    
-    // Configure output pins
-	TRISBbits.TRISB0 = 0; // pin  4 of DIP28
-	TRISBbits.TRISB1 = 0; // pin  5 of DIP28
-	TRISBbits.TRISB2 = 0; // pin  6 of DIP28
-	TRISBbits.TRISB3 = 0; // pin  7 of DIP28
-
-	INTCONbits.MVEC = 1;
+// Print string to UART
+void uart_puts(char * s)
+{
+	while(*s)
+	{
+		putchar(*s);
+		s++;
+	}
 }
 
-// GetPeriod() seems to work fine for frequencies between 200Hz and 700kHz.
-// Obtain period of n periodic pulses
-// Period is measured in (2/SYSCLK)s => 50ns intervals
 long int GetPeriod (int n)
 {
-	__builtin_disable_interrupts();
 	int i;
 	unsigned int saved_TCNT1a, saved_TCNT1b;
 	
@@ -165,11 +199,49 @@ long int GetPeriod (int n)
 			if(_CP0_GET_COUNT() > (SYSCLK/8)) return 0;
 		}
 	}
-	__builtin_enable_interrupts();
+
 	return  _CP0_GET_COUNT();
 }
 
-// Configure UART port 2
+// Print number of specified base to serial (up to equivalent hex base)
+char HexDigit[]="0123456789ABCDEF";
+void PrintNumber(long int val, int Base, int digits)
+{ 
+	int j;
+	#define NBITS 32
+	char buff[NBITS+1];
+	buff[NBITS]=0;
+
+	j=NBITS-1;
+	while ( (val>0) | (digits>0) )
+	{
+		buff[j--]=HexDigit[val%Base];
+		val/=Base;
+		if(digits!=0) digits--;
+	}
+	uart_puts(&buff[j+1]);
+}
+
+void ConfigurePins(void)
+{   
+	// Configure digital input pin to measure signal period
+	//ANSELB &= ~(1<<5); // Set RB5 as a digital I/O (pin 14 of DIP28)
+    //TRISB |= (1<<5);   // configure pin RB5 as input
+    //CNPUB |= (1<<5);   // Enable pull-up resistor for RB5
+	// RB14 is connected to the 'SET' pin of the JDY40.  Configure as output:
+    ANSELB &= ~(1<<14); // Set RB14 as a digital I/O
+    TRISB &= ~(1<<14);  // configure pin RB14 as output
+	LATB |= (1<<14);    // 'SET' pin of JDY40 to 1 is normal operation mode
+    
+    // Configure output pins
+	TRISBbits.TRISB0 = 0; // pin  4 of DIP28
+	TRISBbits.TRISB1 = 0; // pin  5 of DIP28
+	TRISBbits.TRISB2 = 0; // pin  6 of DIP28
+	TRISBbits.TRISB3 = 0; // pin  7 of DIP28
+
+	INTCONbits.MVEC = 1;
+}
+
 void UART2Configure(int baud_rate)
 {
     // Peripheral Pin Select
@@ -183,7 +255,7 @@ void UART2Configure(int baud_rate)
     U2MODESET = 0x8000;     // enable UART2
 }
 
-// Needed to bypass scanf() and gets()
+// Needed to by scanf() and gets()
 int _mon_getc(int canblock)
 {
 	char c;
@@ -212,16 +284,6 @@ int _mon_getc(int canblock)
     }
 }
 
-// Print string to UART
-void uart_puts(char * s)
-{
-	while(*s)
-	{
-		putchar(*s);
-		s++;
-	}
-}
-
 /////////////////////////////////////////////////////////
 // UART1 functions used to communicate with the JDY40  //
 /////////////////////////////////////////////////////////
@@ -242,7 +304,7 @@ int UART1Configure(int desired_baud)
 
 	// Do what the caption of FIGURE 11-2 in '60001168J.pdf' says: "For input only, PPS functionality does not have
     // priority over TRISx settings. Therefore, when configuring RPn pin for input, the corresponding bit in the
-    // TRISx register must also be configured for input (set to ?1?)."
+    // TRISx register must also be configured for input (set to ??."
     
     ANSELB &= ~(1<<13); // Set RB13 as a digital I/O
     TRISB |= (1<<13);   // configure pin RB13 as input
@@ -257,7 +319,7 @@ int UART1Configure(int desired_baud)
 	// RPB7
 
     ANSELB &= ~(1<<15); // Set RB15 as a digital I/O
-    RPB15Rbits.RPB15R = 1; // SET RB15 to U1TX
+    RPB15Rbits.RPB15R = 1; // SET RB15 to U1TX	
 	
     U1MODE = 0;         // disable autobaud, TX and RX enabled only, 8N1, idle=HIGH
     U1STA = 0x1400;     // enable TX and RX
@@ -309,171 +371,61 @@ unsigned int SerialReceive1(char *buffer, unsigned int max_size)
     return num_char;
 }
 
+// Use the core timer to wait for 1 ms.
+void wait_1ms(void)
+{
+    unsigned int ui;
+    _CP0_SET_COUNT(0); // resets the core timer count
+
+    // get the core timer count
+    while ( _CP0_GET_COUNT() < (SYSCLK/(2*1000)) );
+}
+
+void delayms(int len)
+{
+	while(len--) wait_1ms();
+}
+
 void SendATCommand (char * s)
 {
 	char buff[40];
 	printf("Command: %s", s);
 	LATB &= ~(1<<14); // 'SET' pin of JDY40 to 0 is 'AT' mode.
-	waitms(10);
+	delayms(10);
 	SerialTransmit1(s);
 	SerialReceive1(buff, sizeof(buff)-1);
 	LATB |= 1<<14; // 'SET' pin of JDY40 to 1 is normal operation mode.
-	waitms(10);
+	delayms(10);
 	printf("Response: %s\n", buff);
 }
 
-// Print number of specified base to serial (up to equivalent hex base)
-char HexDigit[]="0123456789ABCDEF";
-void PrintNumber(long int val, int Base, int digits)
-{ 
-	int j;
-	#define NBITS 32
-	char buff[NBITS+1];
-	buff[NBITS]=0;
-
-	j=NBITS-1;
-	while ( (val>0) | (digits>0) )
-	{
-		buff[j--]=HexDigit[val%Base];
-		val/=Base;
-		if(digits!=0) digits--;
-	}
-	uart_puts(&buff[j+1]);
-}
-
-//send number through JDY40
-void SendInt(long int val, int Base, int digits)
-{
-	int j;
-	#define NBITS 32
-	char buff[NBITS+1];
-	buff[NBITS]=0;
-
-	j=NBITS-1;
-	while ( (val>0) | (digits>0) )
-	{
-		buff[j--]=HexDigit[val%Base];
-		val/=Base;
-		if(digits!=0) digits--;
-	}
-	SerialTransmit1(&buff[j+1]);
-}
-
-// Print a fixed point number broken into its components
-void PrintFixedPoint (unsigned long number, int decimals)
-{
-	int divider=1, j;
-	
-	j=decimals;
-	while(j--) divider*=10;
-	
-	PrintNumber(number/divider, 10, 1);
-	uart_puts(".");
-	PrintNumber(number%divider, 10, decimals);
-}
-// Motor drive mode is defined by a numerical input
-// 1 = forward, 2 = reverse, 3 = CW, 4 = CCW, otherwise = no motion
-void update_motors (char control_flags)
-{
-        if (control_flags==1) //two forward
-        {
-            motor_con[0] = 1;
-            motor_con[1] = 0;
-            motor_con[2] = 1;
-            motor_con[3] = 0;
-        }
-        else if (control_flags==2) //two reverse
-        {
-            motor_con[0] = 0;
-            motor_con[1] = 1;
-            motor_con[2] = 0;
-            motor_con[3] = 1;
-        }
-        else if (control_flags==3) //CW rotation
-        {
-            motor_con[0] = 1;
-            motor_con[1] = 0;
-            motor_con[2] = 0;
-            motor_con[3] = 1;
-        }
-        else if (control_flags==4) //CCW rotation
-        {
-            motor_con[0] = 0;
-            motor_con[1] = 1;
-            motor_con[2] = 1;
-            motor_con[3] = 0;
-        }
-        else //default case no motion
-        {
-            motor_con[0] = 0;
-            motor_con[1] = 0;
-            motor_con[2] = 0;
-            motor_con[3] = 0;
-        }
-}
-
-//extract numbers from string
-// IMPORTANT: JDY40 instructions numbers must be int, mode is 1 digit, and power must be 3 digits
-// i.e. 50 => 050, 2 => 002
-void numsfromstr (char *string, int buffer[])
-{
-	int i;
-	int j = 0;
-	char temp[8]; //temporary number storage buffer
-
-	//clear buffer
-	buffer[0] = 0;
-	buffer[1] = 0;
-	buffer[2] = 0;
-	// scan length of string
-	do
-	{
-		if ((string[i] - '0' >= 0) && (string[i] - '0' <= 9)) //ASCII number detection
-		{
-			// put value into a char array if the value is an int
-			temp[j] = string[i];
-			j++;
-		}
-		i++; //increment through string
-	}
-	while (string[i] != '\0');
-
-	//temp[j+1] = '/0'; //terminate temp to make it a proper string
-
-	buffer[0] = (temp[0] - '0'); // cast chars to int values
-	buffer[1] += (temp[1]-'0')*100;
-	buffer[1] += (temp[2]-'0')*10;
-	buffer[1] += (temp[3]-'0');
-	buffer[2] += (temp[4]-'0')*100;
-	buffer[2] += (temp[5]-'0')*10;
-	buffer[2] += (temp[6]-'0');
-}
-// In order to keep this as nimble as possible, avoid
-// using floating point or printf() on any of its forms!
 void main(void)
 {
-	volatile unsigned long t=0;
-	unsigned long int count, f;
-    // placeholder value for motor control variable
-    unsigned char mode = 0;
 	char buff[80];
-	int num1,num2,num3;
-	int j = 0;
-
+    int cnt=0;
+    int mode = 0;
+    int count, f;
+    char *c;
+    int num1,num2,num3;
+    
 	DDPCON = 0;
 	CFGCON = 0;
   
     UART2Configure(115200);  // Configure UART2 for a baud rate of 115200
-    UART1Configure(9600); // Configure UART1 to read serial values from the JDY40
+    UART1Configure(9600);  // Configure UART1 to communicate with JDY40 with a baud rate of 9600
     SetupTimer1();
-	ConfigurePins();
-	
-	
-// Initialize JDY40
+    ConfigurePins();
+	delayms(500); // Give putty time to start before we send stuff.
+    //printf("JDY40 test program.\r\n");
+
+	// RB14 is connected to the 'SET' pin of the JDY40.  Configure as output:
+    ANSELB &= ~(1<<14); // Set RB14 as a digital I/O
+    TRISB &= ~(1<<14);  // configure pin RB14 as output
+	LATB |= (1<<14);    // 'SET' pin of JDY40 to 1 is normal operation mode
+
 	// We should select an unique device ID.  The device ID can be a hex
 	// number from 0x0000 to 0xFFFF.  In this case is set to 0xABBA
-	printf("Initialising JDY40...");
-	SendATCommand("AT+DVIDBCBA\r\n");  
+	SendATCommand("AT+DVID9B9A\r\n");  
 
 	// To check configuration
 	SendATCommand("AT+VER\r\n");
@@ -483,15 +435,18 @@ void main(void)
 	SendATCommand("AT+RFC\r\n");
 	SendATCommand("AT+POWE\r\n");
 	SendATCommand("AT+CLSS\r\n");
-    
-    waitms(500); // Give PuTTY time to start
-	uart_puts("\x1b[2J\x1b[1;1H"); // Clear screen using ANSI escape sequence.
-	uart_puts("\rPIC32 Robot Test\r\n");
+
+    ANSELB &= ~(1<<6); // Set RB6 as a digital I/O
+    TRISB |= (1<<6);   // configure pin RB6 as input
+    CNPUB |= (1<<6);   // Enable pull-up resistor for RB6
+ 	
+	//printf("\r\nPress and hold a push-button attached to RB6 (pin 15) to transmit.\r\n");
+	
 	while(1)
 	{
 	
 		
-		count=GetPeriod(100); // Get period of 100 wave cycles
+		/*count=GetPeriod(100); // Get period of 100 wave cycles
 		
 		
 		if (count > 22000){
@@ -511,20 +466,19 @@ void main(void)
 		else
 		{
 			uart_puts("NO FREQUENCY ON PIN14                     \r");
-		}
-
-		update_motors(1); // motor test code
-
+		}*/
+		
         // Read serial values from JDY40
 		if(U1STAbits.URXDA)
 		{
-			
+				//printf("y");
 				SerialReceive1(buff, sizeof(buff)-1);
 				if (strlen(buff)==9){
-				num1=atoi(&buff[0]);
-				num2=atoi(&buff[2]);
-				num3=atoi(&buff[6]);
-				PrintNumber(num1,10,1);
+					num1=atoi(&buff[0]);
+					num2=atoi(&buff[2]);
+					num3=atoi(&buff[6]);
+					//PrintNumber(num2,10,3);
+				//PrintNumber(num1,10,1);
 				
 				}
 
@@ -537,7 +491,7 @@ void main(void)
         ISR_pwm1 = num2*20; //Power percentage converted to PWM power value ---> This is the right motor
         ISR_pwm2 = num3*20; //
         mode = num1; //placeholder, should be mode field of JDY40 read
-
+		printf("%d",mode);
         // update motor operation mode
         update_motors(mode);
 
