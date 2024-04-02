@@ -462,6 +462,8 @@ void main (void)
 	float pwmR;
 	float pwmL;
 	int mode=1;
+	int buttonpress=0;
+	int j;
 	
 	float JS[2]; //for joystick
 	
@@ -593,6 +595,16 @@ void main (void)
 			TMR2RL=0x10000L-x; // Change reload value for new frequency
 			TR2=1; // Start timer 2
 			printf("RX: %s\r\n", buff);
+		}
+		LCDprint("ooooooo",2,1);
+		if(buttonpress > 7){
+			buttonpress = 0;
+		}
+		if (P3_1 == 0){
+			buttonpress++;
+		}
+		for(j = 1; j<buttonpress+1; j++){
+			LCDprint("O",2,j);
 		}
 	}
 }

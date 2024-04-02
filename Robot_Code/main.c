@@ -38,6 +38,8 @@
 #define Baud2BRG(desired_baud)( (SYSCLK / (16*desired_baud))-1)
 #define Baud1BRG(desired_baud)( (SYSCLK / (16*desired_baud))-1)
 
+#define PIN_PERIOD (PORTB&(1<<5))
+
 volatile int ISR_pwm1=1000, ISR_pwm2=1000, ISR_cnt=0; // Declared variables as volatile, since they can be changed independent on normal code operation
 unsigned char motor_con[4];
 
@@ -122,6 +124,122 @@ void update_motors (char control_flags)
             motor_con[2] = 0;
             motor_con[3] = 0;
         }
+}
+
+void numsfromstr (char *string, int buffer[])
+{
+	int i;
+	int j = 0;
+	char temp[8]; //temporary number storage buffer
+
+	//clear buffer
+	buffer[0] = 0;
+	buffer[1] = 0;
+	buffer[2] = 0;
+	// scan length of string
+	do
+	{
+		if (((string[i] - '0') >= 0) && ((string[i] - '0') <= 9)) //ASCII number detection
+		{
+			// put value into a char array if the value is an int
+			temp[j] = string[i];
+			j++;
+		}
+		i++; //increment through string
+	}
+	while (string[i] != '\0');
+
+	//temp[j+1] = '/0'; //terminate temp to make it a proper string
+
+	buffer[0] = (temp[0] - '0'); // cast chars to int values
+	buffer[1] += (temp[1]-'0')*100;
+	buffer[1] += (temp[2]-'0')*10;
+	buffer[1] += (temp[3]-'0');
+	buffer[2] += (temp[4]-'0')*100;
+	buffer[2] += (temp[5]-'0')*10;
+	buffer[2] += (temp[6]-'0');
+}
+
+// Print string to UART
+void uart_puts(char * s)
+{
+	while(*s)
+	{
+		putchar(*s);
+		s++;
+	}
+}
+
+long int GetPeriod (int n)
+{
+	int i;
+	unsigned int saved_TCNT1a, saved_TCNT1b;
+	
+    _CP0_SET_COUNT(0); // resets the core timer count
+	while (PIN_PERIOD!=0) // Wait for square wave to be 0
+	{
+		if(_CP0_GET_COUNT() > (SYSCLK/8)) return 0; // Core timer increments every 2 SYSCLK cycles, return 0 if more than 10*10^6 clk cycles elapse
+	}
+
+    _CP0_SET_COUNT(0); // resets the core timer count
+	while (PIN_PERIOD==0) // Wait for square wave to be 1
+	{
+		if(_CP0_GET_COUNT() > (SYSCLK/8)) return 0;
+	}
+	
+    _CP0_SET_COUNT(0); // resets the core timer count
+	for(i=0; i<n; i++) // Measure the time of 'n' periods
+	{
+		while (PIN_PERIOD!=0) // Wait for square wave to be 0
+		{
+			if(_CP0_GET_COUNT() > (SYSCLK/8)) return 0;
+		}
+		while (PIN_PERIOD==0) // Wait for square wave to be 1
+		{
+			if(_CP0_GET_COUNT() > (SYSCLK/8)) return 0;
+		}
+	}
+
+	return  _CP0_GET_COUNT();
+}
+
+// Print number of specified base to serial (up to equivalent hex base)
+char HexDigit[]="0123456789ABCDEF";
+void PrintNumber(long int val, int Base, int digits)
+{ 
+	int j;
+	#define NBITS 32
+	char buff[NBITS+1];
+	buff[NBITS]=0;
+
+	j=NBITS-1;
+	while ( (val>0) | (digits>0) )
+	{
+		buff[j--]=HexDigit[val%Base];
+		val/=Base;
+		if(digits!=0) digits--;
+	}
+	uart_puts(&buff[j+1]);
+}
+
+void ConfigurePins(void)
+{   
+	// Configure digital input pin to measure signal period
+	//ANSELB &= ~(1<<5); // Set RB5 as a digital I/O (pin 14 of DIP28)
+    //TRISB |= (1<<5);   // configure pin RB5 as input
+    //CNPUB |= (1<<5);   // Enable pull-up resistor for RB5
+	// RB14 is connected to the 'SET' pin of the JDY40.  Configure as output:
+    ANSELB &= ~(1<<14); // Set RB14 as a digital I/O
+    TRISB &= ~(1<<14);  // configure pin RB14 as output
+	LATB |= (1<<14);    // 'SET' pin of JDY40 to 1 is normal operation mode
+    
+    // Configure output pins
+	TRISBbits.TRISB0 = 0; // pin  4 of DIP28
+	TRISBbits.TRISB1 = 0; // pin  5 of DIP28
+	TRISBbits.TRISB2 = 0; // pin  6 of DIP28
+	TRISBbits.TRISB3 = 0; // pin  7 of DIP28
+
+	INTCONbits.MVEC = 1;
 }
 
 void UART2Configure(int baud_rate)
@@ -285,14 +403,17 @@ void main(void)
 {
 	char buff[80];
     int cnt=0;
+    int mode = 0;
+    int count, f;
     char *c;
+    int num[3];
     
 	DDPCON = 0;
 	CFGCON = 0;
   
     UART2Configure(115200);  // Configure UART2 for a baud rate of 115200
     UART1Configure(9600);  // Configure UART1 to communicate with JDY40 with a baud rate of 9600
- 
+    SetupTimer1();
 	delayms(500); // Give putty time to start before we send stuff.
     printf("JDY40 test program.\r\n");
 
@@ -314,32 +435,49 @@ void main(void)
 	SendATCommand("AT+POWE\r\n");
 	SendATCommand("AT+CLSS\r\n");
 
-    update_motors(1);
-
     ANSELB &= ~(1<<6); // Set RB6 as a digital I/O
     TRISB |= (1<<6);   // configure pin RB6 as input
     CNPUB |= (1<<6);   // Enable pull-up resistor for RB6
  	
 	printf("\r\nPress and hold a push-button attached to RB6 (pin 15) to transmit.\r\n");
-	
-	cnt=0;
+	update_motors(1);
+
 	while(1)
 	{
-		/*if((PORTB&(1<<6))==0)
+        /*
+        count=GetPeriod(1); // Get period of 100 wave cycles
+		if (count > 220){
+			count=GetPeriod(1); // If invalid, measure again
+		}
+
+		if(count>0)
 		{
-			sprintf(buff, "JDY40 test %d\r\n", cnt++);
-			SerialTransmit1(buff);
-			printf(".");
-			delayms(200);
+			f=(SYSCLK/2L)/count; // Convert period units to Hz
+
+			uart_puts("f="); // serial print for debugging
+			PrintNumber(f, 10, 7);
+			uart_puts("          \n\r");
 		}*/
 		
 		if(U1STAbits.URXDA) // Something has arrived
 		{
 			
 				SerialReceive1(buff, sizeof(buff)-1);
+                
 				if (strlen(buff)==7){
-				printf("RX: %s\r\n", buff);
+                // numsfromstr(buff, num);
+                //mode = num[0];
+                //ISR_pwm1 = num[1]*20; //Power percentage converted to PWM power value
+                //ISR_pwm2 = num[2]*20;
+				printf("RX: %d %d %d\r\n", num[0], num[1], num[2]);
+                printf("RX: %s\r\n", buff);
 				}
+                /*if((strlen(buff)==1)
+		        {
+                    itoa(f, buff, 10); //convert f to string and send 
+			        SerialTransmit1(buff);
+			        delayms(200);
+		        }*/
 		}
 	}
 }
