@@ -1,11 +1,10 @@
 ;--------------------------------------------------------
 ; File Created by C51
 ; Version 1.0.0 #1170 (Feb 16 2022) (MSVC)
-; This file was generated Tue Apr 02 13:20:30 2024
+; This file was generated Tue Apr 02 14:18:08 2024
 ;--------------------------------------------------------
 $name Remote
 $optc51 --model-small
-$printf_float
 	R_DSEG    segment data
 	R_CSEG    segment code
 	R_BSEG    segment bit
@@ -513,10 +512,10 @@ _main_pwmR_1_119:
 	ds 4
 _main_pwmL_1_119:
 	ds 4
-_main_mode_1_119:
-	ds 2
 _main_buttonpress_1_119:
 	ds 2
+_main_buff_1_119:
+	ds 8
 _main_JS_1_119:
 	ds 8
 _main_sloc0_1_0:
@@ -1685,9 +1684,10 @@ _Timer2_ISR:
 ;------------------------------------------------------------
 ;pwmR                      Allocated with name '_main_pwmR_1_119'
 ;pwmL                      Allocated with name '_main_pwmL_1_119'
-;mode                      Allocated with name '_main_mode_1_119'
+;mode                      Allocated to registers 
 ;buttonpress               Allocated with name '_main_buttonpress_1_119'
-;j                         Allocated to registers r4 r5 
+;j                         Allocated to registers r2 r3 
+;buff                      Allocated with name '_main_buff_1_119'
 ;JS                        Allocated with name '_main_JS_1_119'
 ;x                         Allocated to registers 
 ;f                         Allocated to registers 
@@ -1698,20 +1698,16 @@ _Timer2_ISR:
 ;	 function main
 ;	-----------------------------------------
 _main:
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:464: int mode=1;
-	mov	_main_mode_1_119,#0x01
-	clr	a
-	mov	(_main_mode_1_119 + 1),a
 ;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:465: int buttonpress=0;
 	clr	a
 	mov	_main_buttonpress_1_119,a
 	mov	(_main_buttonpress_1_119 + 1),a
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:476: LCD_4BIT();
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:477: LCD_4BIT();
 	lcall	_LCD_4BIT
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:478: waitms(500);
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:479: waitms(500);
 	mov	dptr,#0x01F4
 	lcall	_waitms
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:479: printf("\r\n Project2_Test \r\n");
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:480: printf("\r\n Project2_Test \r\n");
 	mov	a,#__str_2
 	push	acc
 	mov	a,#(__str_2 >> 8)
@@ -1722,54 +1718,54 @@ _main:
 	dec	sp
 	dec	sp
 	dec	sp
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:480: UART1_Init(9600);
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:481: UART1_Init(9600);
 	mov	dptr,#0x2580
 	clr	a
 	mov	b,a
 	lcall	_UART1_Init
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:483: InitPinADC(2,3);
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:484: InitPinADC(2,3);
 	mov	_InitPinADC_PARM_2,#0x03
 	mov	dpl,#0x02
 	lcall	_InitPinADC
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:484: InitPinADC(2,2);
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:485: InitPinADC(2,2);
 	mov	_InitPinADC_PARM_2,#0x02
 	mov	dpl,#0x02
 	lcall	_InitPinADC
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:485: InitADC();
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:486: InitADC();
 	lcall	_InitADC
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:488: SendATCommand("AT+DVIDBABA\r\n");  
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:489: SendATCommand("AT+DVIDBABA\r\n");  
 	mov	dptr,#__str_3
 	mov	b,#0x80
 	lcall	_SendATCommand
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:491: SendATCommand("AT+VER\r\n");
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:492: SendATCommand("AT+VER\r\n");
 	mov	dptr,#__str_4
 	mov	b,#0x80
 	lcall	_SendATCommand
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:492: SendATCommand("AT+BAUD\r\n");
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:493: SendATCommand("AT+BAUD\r\n");
 	mov	dptr,#__str_5
 	mov	b,#0x80
 	lcall	_SendATCommand
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:493: SendATCommand("AT+RFID\r\n");
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:494: SendATCommand("AT+RFID\r\n");
 	mov	dptr,#__str_6
 	mov	b,#0x80
 	lcall	_SendATCommand
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:494: SendATCommand("AT+DVID\r\n");
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:495: SendATCommand("AT+DVID\r\n");
 	mov	dptr,#__str_7
 	mov	b,#0x80
 	lcall	_SendATCommand
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:495: SendATCommand("AT+RFC\r\n");
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:496: SendATCommand("AT+RFC\r\n");
 	mov	dptr,#__str_8
 	mov	b,#0x80
 	lcall	_SendATCommand
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:496: SendATCommand("AT+POWE\r\n");
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:497: SendATCommand("AT+POWE\r\n");
 	mov	dptr,#__str_9
 	mov	b,#0x80
 	lcall	_SendATCommand
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:497: SendATCommand("AT+CLSS\r\n");
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:498: SendATCommand("AT+CLSS\r\n");
 	mov	dptr,#__str_10
 	mov	b,#0x80
 	lcall	_SendATCommand
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:499: printf("\r\Press and hold the BOOT button to transmit.\r\n");
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:500: printf("\r\Press and hold the BOOT button to transmit.\r\n");
 	mov	a,#__str_11
 	push	acc
 	mov	a,#(__str_11 >> 8)
@@ -1780,37 +1776,37 @@ _main:
 	dec	sp
 	dec	sp
 	dec	sp
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:501: LCDprint("Remote Test",1,1);
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:502: LCDprint("Remote Test",1,1);
 	mov	_LCDprint_PARM_2,#0x01
 	setb	_LCDprint_PARM_3
 	mov	dptr,#__str_12
 	mov	b,#0x80
 	lcall	_LCDprint
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:503: while(1)
-L026040?:
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:505: JS[0] = Volts_at_Pin(QFP32_MUX_P2_2); //VRX
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:504: while(1)
+L026043?:
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:506: JS[0] = Volts_at_Pin(QFP32_MUX_P2_2); //VRX
 	mov	dpl,#0x0F
 	lcall	_Volts_at_Pin
-	mov	r6,dpl
-	mov	r7,dph
-	mov	r2,b
-	mov	r3,a
-	mov	_main_JS_1_119,r6
-	mov	(_main_JS_1_119 + 1),r7
-	mov	(_main_JS_1_119 + 2),r2
-	mov	(_main_JS_1_119 + 3),r3
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:506: JS[1] = Volts_at_Pin(QFP32_MUX_P2_3); //VRY	
-	mov	dpl,#0x10
-	lcall	_Volts_at_Pin
-	mov	r2,dpl
-	mov	r3,dph
+	mov	r4,dpl
+	mov	r5,dph
 	mov	r6,b
 	mov	r7,a
-	mov	(_main_JS_1_119 + 0x0004),r2
-	mov	((_main_JS_1_119 + 0x0004) + 1),r3
+	mov	_main_JS_1_119,r4
+	mov	(_main_JS_1_119 + 1),r5
+	mov	(_main_JS_1_119 + 2),r6
+	mov	(_main_JS_1_119 + 3),r7
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:507: JS[1] = Volts_at_Pin(QFP32_MUX_P2_3); //VRY	
+	mov	dpl,#0x10
+	lcall	_Volts_at_Pin
+	mov	r4,dpl
+	mov	r5,dph
+	mov	r6,b
+	mov	r7,a
+	mov	(_main_JS_1_119 + 0x0004),r4
+	mov	((_main_JS_1_119 + 0x0004) + 1),r5
 	mov	((_main_JS_1_119 + 0x0004) + 2),r6
 	mov	((_main_JS_1_119 + 0x0004) + 3),r7
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:515: if (JS[0]>1.75)//going forward
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:516: if (JS[0]>1.75)//going forward
 	clr	a
 	push	acc
 	push	acc
@@ -1823,21 +1819,17 @@ L026040?:
 	mov	b,(_main_JS_1_119 + 2)
 	mov	a,(_main_JS_1_119 + 3)
 	lcall	___fsgt
-	mov	r2,dpl
+	mov	r4,dpl
 	mov	a,sp
 	add	a,#0xfc
 	mov	sp,a
-	mov	a,r2
-	jnz	L026066?
+	mov	a,r4
+	jnz	L026071?
 	ljmp	L026023?
-L026066?:
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:517: TR2=0;
+L026071?:
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:518: TR2=0;
 	clr	_TR2
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:518: mode=1;
-	mov	_main_mode_1_119,#0x01
-	clr	a
-	mov	(_main_mode_1_119 + 1),a
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:519: if(JS[1]>1.75){
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:520: if(JS[1]>1.75){
 	clr	a
 	push	acc
 	push	acc
@@ -1850,15 +1842,15 @@ L026066?:
 	mov	b,((_main_JS_1_119 + 0x0004) + 2)
 	mov	a,((_main_JS_1_119 + 0x0004) + 3)
 	lcall	___fsgt
-	mov	r2,dpl
+	mov	r4,dpl
 	mov	a,sp
 	add	a,#0xfc
 	mov	sp,a
-	mov	a,r2
-	jnz	L026067?
+	mov	a,r4
+	jnz	L026072?
 	ljmp	L026005?
-L026067?:
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:520: pwmL=(JS[1]-1.72)/0.01604;
+L026072?:
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:521: pwmL=(JS[1]-1.72)/0.01604;
 	mov	a,#0xF6
 	push	acc
 	mov	a,#0x28
@@ -1872,8 +1864,8 @@ L026067?:
 	mov	b,((_main_JS_1_119 + 0x0004) + 2)
 	mov	a,((_main_JS_1_119 + 0x0004) + 3)
 	lcall	___fssub
-	mov	r2,dpl
-	mov	r3,dph
+	mov	r4,dpl
+	mov	r5,dph
 	mov	r6,b
 	mov	r7,a
 	mov	a,sp
@@ -1887,8 +1879,8 @@ L026067?:
 	push	acc
 	mov	a,#0x3C
 	push	acc
-	mov	dpl,r2
-	mov	dph,r3
+	mov	dpl,r4
+	mov	dph,r5
 	mov	b,r6
 	mov	a,r7
 	lcall	___fsdiv
@@ -1899,7 +1891,7 @@ L026067?:
 	mov	a,sp
 	add	a,#0xfc
 	mov	sp,a
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:521: pwmR=100.0-pwmL;
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:522: pwmR=100.0-pwmL;
 	push	_main_pwmL_1_119
 	push	(_main_pwmL_1_119 + 1)
 	push	(_main_pwmL_1_119 + 2)
@@ -1915,7 +1907,7 @@ L026067?:
 	mov	a,sp
 	add	a,#0xfc
 	mov	sp,a
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:522: LCDprint("Turning right",1,1);
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:523: LCDprint("Turning right",1,1);
 	mov	_LCDprint_PARM_2,#0x01
 	setb	_LCDprint_PARM_3
 	mov	dptr,#__str_13
@@ -1923,7 +1915,7 @@ L026067?:
 	lcall	_LCDprint
 	ljmp	L026024?
 L026005?:
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:523: }else if (JS[1]<1.6){
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:524: }else if (JS[1]<1.6){
 	mov	a,#0xCD
 	push	acc
 	mov	a,#0xCC
@@ -1941,10 +1933,10 @@ L026005?:
 	add	a,#0xfc
 	mov	sp,a
 	mov	a,r6
-	jnz	L026068?
+	jnz	L026073?
 	ljmp	L026002?
-L026068?:
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:524: pwmR=100.0-(JS[1]-0.01604)/0.01604;
+L026073?:
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:525: pwmR=100.0-(JS[1]-0.01604)/0.01604;
 	mov	a,#0x51
 	push	acc
 	mov	a,#0x66
@@ -2000,7 +1992,7 @@ L026068?:
 	mov	a,sp
 	add	a,#0xfc
 	mov	sp,a
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:525: pwmL=100.0-pwmR;
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:526: pwmL=100.0-pwmR;
 	push	_main_pwmR_1_119
 	push	(_main_pwmR_1_119 + 1)
 	push	(_main_pwmR_1_119 + 2)
@@ -2016,7 +2008,7 @@ L026068?:
 	mov	a,sp
 	add	a,#0xfc
 	mov	sp,a
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:526: LCDprint("Turning left",1,1);
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:527: LCDprint("Turning left",1,1);
 	mov	_LCDprint_PARM_2,#0x01
 	setb	_LCDprint_PARM_3
 	mov	dptr,#__str_14
@@ -2024,7 +2016,7 @@ L026068?:
 	lcall	_LCDprint
 	ljmp	L026024?
 L026002?:
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:528: pwmR=(JS[0]-1.70)/0.01604;
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:529: pwmR=(JS[0]-1.70)/0.01604;
 	mov	a,#0x9A
 	push	acc
 	mov	a,#0x99
@@ -2065,7 +2057,7 @@ L026002?:
 	mov	a,sp
 	add	a,#0xfc
 	mov	sp,a
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:529: pwmL=(JS[0]-1.70)/0.01604;
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:530: pwmL=(JS[0]-1.70)/0.01604;
 	mov	a,#0x9A
 	push	acc
 	mov	a,#0x99
@@ -2106,7 +2098,7 @@ L026002?:
 	mov	a,sp
 	add	a,#0xfc
 	mov	sp,a
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:530: LCDprint("Going forward",1,1);
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:531: LCDprint("Going forward",1,1);
 	mov	_LCDprint_PARM_2,#0x01
 	setb	_LCDprint_PARM_3
 	mov	dptr,#__str_15
@@ -2114,7 +2106,7 @@ L026002?:
 	lcall	_LCDprint
 	ljmp	L026024?
 L026023?:
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:533: }else if (JS[0]<1.6) //for going backwards
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:534: }else if (JS[0]<1.6) //for going backwards
 	mov	a,#0xCD
 	push	acc
 	mov	a,#0xCC
@@ -2132,19 +2124,16 @@ L026023?:
 	add	a,#0xfc
 	mov	sp,a
 	mov	a,r2
-	jnz	L026069?
+	jnz	L026074?
 	ljmp	L026020?
-L026069?:
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:535: TR2=1;
+L026074?:
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:536: TR2=1;
 	setb	_TR2
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:536: TMR2RL=0x10000L-x;
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:537: TMR2RL=0x10000L-x;
 	mov	_TMR2RL,#0xB0
 	mov	(_TMR2RL >> 8),#0xB9
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:537: mode=0;
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:538: if(JS[1]>1.75){
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:539: if(JS[1]>1.75){
 	clr	a
-	mov	_main_mode_1_119,a
-	mov	(_main_mode_1_119 + 1),a
 	push	acc
 	push	acc
 	mov	a,#0xE0
@@ -2161,10 +2150,10 @@ L026069?:
 	add	a,#0xfc
 	mov	sp,a
 	mov	a,r2
-	jnz	L026070?
+	jnz	L026075?
 	ljmp	L026011?
-L026070?:
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:539: pwmL=(JS[1]-1.72)/0.01604;
+L026075?:
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:540: pwmL=(JS[1]-1.72)/0.01604;
 	mov	a,#0xF6
 	push	acc
 	mov	a,#0x28
@@ -2205,7 +2194,7 @@ L026070?:
 	mov	a,sp
 	add	a,#0xfc
 	mov	sp,a
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:540: pwmR=100.0-pwmL;
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:541: pwmR=100.0-pwmL;
 	push	_main_pwmL_1_119
 	push	(_main_pwmL_1_119 + 1)
 	push	(_main_pwmL_1_119 + 2)
@@ -2221,7 +2210,7 @@ L026070?:
 	mov	a,sp
 	add	a,#0xfc
 	mov	sp,a
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:541: LCDprint("Turning right",1,1);
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:542: LCDprint("Turning right",1,1);
 	mov	_LCDprint_PARM_2,#0x01
 	setb	_LCDprint_PARM_3
 	mov	dptr,#__str_13
@@ -2229,7 +2218,7 @@ L026070?:
 	lcall	_LCDprint
 	ljmp	L026024?
 L026011?:
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:542: }else if (JS[1]<1.6){
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:543: }else if (JS[1]<1.6){
 	mov	a,#0xCD
 	push	acc
 	mov	a,#0xCC
@@ -2247,10 +2236,10 @@ L026011?:
 	add	a,#0xfc
 	mov	sp,a
 	mov	a,r2
-	jnz	L026071?
+	jnz	L026076?
 	ljmp	L026008?
-L026071?:
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:543: pwmR=100.0-(JS[1]-0.01604)/0.01604;
+L026076?:
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:544: pwmR=100.0-(JS[1]-0.01604)/0.01604;
 	mov	a,#0x51
 	push	acc
 	mov	a,#0x66
@@ -2306,7 +2295,7 @@ L026071?:
 	mov	a,sp
 	add	a,#0xfc
 	mov	sp,a
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:544: pwmL=100.0-pwmR;
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:545: pwmL=100.0-pwmR;
 	push	_main_pwmR_1_119
 	push	(_main_pwmR_1_119 + 1)
 	push	(_main_pwmR_1_119 + 2)
@@ -2322,7 +2311,7 @@ L026071?:
 	mov	a,sp
 	add	a,#0xfc
 	mov	sp,a
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:545: LCDprint("Turning left",1,1);
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:546: LCDprint("Turning left",1,1);
 	mov	_LCDprint_PARM_2,#0x01
 	setb	_LCDprint_PARM_3
 	mov	dptr,#__str_14
@@ -2330,7 +2319,7 @@ L026071?:
 	lcall	_LCDprint
 	ljmp	L026024?
 L026008?:
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:547: pwmR=(1.7-JS[0])/0.01604;
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:548: pwmR=(1.7-JS[0])/0.01604;
 	push	_main_JS_1_119
 	push	(_main_JS_1_119 + 1)
 	push	(_main_JS_1_119 + 2)
@@ -2366,7 +2355,7 @@ L026008?:
 	mov	a,sp
 	add	a,#0xfc
 	mov	sp,a
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:548: pwmL=(1.7-JS[0])/0.01604;
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:549: pwmL=(1.7-JS[0])/0.01604;
 	push	_main_JS_1_119
 	push	(_main_JS_1_119 + 1)
 	push	(_main_JS_1_119 + 2)
@@ -2402,7 +2391,7 @@ L026008?:
 	mov	a,sp
 	add	a,#0xfc
 	mov	sp,a
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:549: LCDprint("Reversing",1,1);
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:550: LCDprint("Reversing",1,1);
 	mov	_LCDprint_PARM_2,#0x01
 	setb	_LCDprint_PARM_3
 	mov	dptr,#__str_16
@@ -2410,7 +2399,7 @@ L026008?:
 	lcall	_LCDprint
 	ljmp	L026024?
 L026020?:
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:552: }else if(JS[1]>1.75){
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:553: }else if(JS[1]>1.75){
 	clr	a
 	push	acc
 	push	acc
@@ -2428,10 +2417,10 @@ L026020?:
 	add	a,#0xfc
 	mov	sp,a
 	mov	a,r2
-	jnz	L026072?
+	jnz	L026077?
 	ljmp	L026017?
-L026072?:
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:554: pwmL=(JS[1]-1.72)/0.01604;
+L026077?:
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:555: pwmL=(JS[1]-1.72)/0.01604;
 	mov	a,#0xF6
 	push	acc
 	mov	a,#0x28
@@ -2472,7 +2461,7 @@ L026072?:
 	mov	a,sp
 	add	a,#0xfc
 	mov	sp,a
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:555: pwmR=100.0-pwmL;
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:556: pwmR=100.0-pwmL;
 	push	_main_pwmL_1_119
 	push	(_main_pwmL_1_119 + 1)
 	push	(_main_pwmL_1_119 + 2)
@@ -2488,7 +2477,7 @@ L026072?:
 	mov	a,sp
 	add	a,#0xfc
 	mov	sp,a
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:556: LCDprint("Turning right",1,1);
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:557: LCDprint("Turning right",1,1);
 	mov	_LCDprint_PARM_2,#0x01
 	setb	_LCDprint_PARM_3
 	mov	dptr,#__str_13
@@ -2496,7 +2485,7 @@ L026072?:
 	lcall	_LCDprint
 	ljmp	L026024?
 L026017?:
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:558: }else if (JS[1]<1.6){
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:559: }else if (JS[1]<1.6){
 	mov	a,#0xCD
 	push	acc
 	mov	a,#0xCC
@@ -2514,10 +2503,10 @@ L026017?:
 	add	a,#0xfc
 	mov	sp,a
 	mov	a,r2
-	jnz	L026073?
+	jnz	L026078?
 	ljmp	L026014?
-L026073?:
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:559: pwmR=100.0-(JS[1]-0.041)/0.01604;
+L026078?:
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:560: pwmR=100.0-(JS[1]-0.041)/0.01604;
 	mov	a,#0x9E
 	push	acc
 	mov	a,#0xEF
@@ -2573,7 +2562,7 @@ L026073?:
 	mov	a,sp
 	add	a,#0xfc
 	mov	sp,a
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:560: pwmL=100.0-pwmR;
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:561: pwmL=100.0-pwmR;
 	push	_main_pwmR_1_119
 	push	(_main_pwmR_1_119 + 1)
 	push	(_main_pwmR_1_119 + 2)
@@ -2589,7 +2578,7 @@ L026073?:
 	mov	a,sp
 	add	a,#0xfc
 	mov	sp,a
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:561: LCDprint("Turning left",1,1);
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:562: LCDprint("Turning left",1,1);
 	mov	_LCDprint_PARM_2,#0x01
 	setb	_LCDprint_PARM_3
 	mov	dptr,#__str_14
@@ -2597,26 +2586,26 @@ L026073?:
 	lcall	_LCDprint
 	sjmp	L026024?
 L026014?:
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:564: pwmR=0.0;
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:565: pwmR=0.0;
 	mov	_main_pwmR_1_119,#0x00
 	mov	(_main_pwmR_1_119 + 1),#0x00
 	mov	(_main_pwmR_1_119 + 2),#0x00
 	mov	(_main_pwmR_1_119 + 3),#0x00
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:565: pwmL=0.0;
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:566: pwmL=0.0;
 	mov	_main_pwmL_1_119,#0x00
 	mov	(_main_pwmL_1_119 + 1),#0x00
 	mov	(_main_pwmL_1_119 + 2),#0x00
 	mov	(_main_pwmL_1_119 + 3),#0x00
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:566: LCDprint("At rest",1,1);
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:567: LCDprint("At rest",1,1);
 	mov	_LCDprint_PARM_2,#0x01
 	setb	_LCDprint_PARM_3
 	mov	dptr,#__str_17
 	mov	b,#0x80
 	lcall	_LCDprint
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:567: TR2=0;
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:568: TR2=0;
 	clr	_TR2
 L026024?:
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:571: if(pwmR>100){
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:572: if(pwmR>100){
 	clr	a
 	push	acc
 	push	acc
@@ -2629,19 +2618,10 @@ L026024?:
 	mov	b,(_main_pwmR_1_119 + 2)
 	mov	a,(_main_pwmR_1_119 + 3)
 	lcall	___fsgt
-	mov	r2,dpl
 	mov	a,sp
 	add	a,#0xfc
 	mov	sp,a
-	mov	a,r2
-	jz	L026026?
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:572: pwmR=100.0;
-	mov	_main_pwmR_1_119,#0x00
-	mov	(_main_pwmR_1_119 + 1),#0x00
-	mov	(_main_pwmR_1_119 + 2),#0xC8
-	mov	(_main_pwmR_1_119 + 3),#0x42
-L026026?:
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:574: if(pwmL>100){
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:575: if(pwmL>100){
 	clr	a
 	push	acc
 	push	acc
@@ -2654,75 +2634,34 @@ L026026?:
 	mov	b,(_main_pwmL_1_119 + 2)
 	mov	a,(_main_pwmL_1_119 + 3)
 	lcall	___fsgt
-	mov	r2,dpl
 	mov	a,sp
 	add	a,#0xfc
 	mov	sp,a
-	mov	a,r2
-	jz	L026028?
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:575: pwmL=100.0;
-	mov	_main_pwmL_1_119,#0x00
-	mov	(_main_pwmL_1_119 + 1),#0x00
-	mov	(_main_pwmL_1_119 + 2),#0xC8
-	mov	(_main_pwmL_1_119 + 3),#0x42
-L026028?:
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:577: if (pwmR<0){
-	clr	a
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:587: sendstr1(buff);
+	mov	dptr,#_main_buff_1_119
+	mov	b,#0x40
+	lcall	_sendstr1
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:590: if(RXU1())
+	lcall	_RXU1
+	jnc	L026034?
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:592: getstr1(buff);
+	mov	dptr,#_main_buff_1_119
+	mov	b,#0x40
+	lcall	_getstr1
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:594: TR2=0; // Stop timer 2
+	clr	_TR2
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:596: TMR2RL=0x10000L-x; // Change reload value for new frequency
+	mov	_TMR2RL,#0xB0
+	mov	(_TMR2RL >> 8),#0xB9
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:597: TR2=1; // Start timer 2
+	setb	_TR2
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:598: printf("RX: %s\r\n", buff);
+	mov	a,#_main_buff_1_119
 	push	acc
+	mov	a,#(_main_buff_1_119 >> 8)
 	push	acc
+	mov	a,#0x40
 	push	acc
-	push	acc
-	mov	dpl,_main_pwmR_1_119
-	mov	dph,(_main_pwmR_1_119 + 1)
-	mov	b,(_main_pwmR_1_119 + 2)
-	mov	a,(_main_pwmR_1_119 + 3)
-	lcall	___fslt
-	mov	r2,dpl
-	mov	a,sp
-	add	a,#0xfc
-	mov	sp,a
-	mov	a,r2
-	jz	L026030?
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:578: pwmR=0.0;
-	mov	_main_pwmR_1_119,#0x00
-	mov	(_main_pwmR_1_119 + 1),#0x00
-	mov	(_main_pwmR_1_119 + 2),#0x00
-	mov	(_main_pwmR_1_119 + 3),#0x00
-L026030?:
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:580: if (pwmL<0){
-	clr	a
-	push	acc
-	push	acc
-	push	acc
-	push	acc
-	mov	dpl,_main_pwmL_1_119
-	mov	dph,(_main_pwmL_1_119 + 1)
-	mov	b,(_main_pwmL_1_119 + 2)
-	mov	a,(_main_pwmL_1_119 + 3)
-	lcall	___fslt
-	mov	r2,dpl
-	mov	a,sp
-	add	a,#0xfc
-	mov	sp,a
-	mov	a,r2
-	jz	L026032?
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:581: pwmL=0.0;
-	mov	_main_pwmL_1_119,#0x00
-	mov	(_main_pwmL_1_119 + 1),#0x00
-	mov	(_main_pwmL_1_119 + 2),#0x00
-	mov	(_main_pwmL_1_119 + 3),#0x00
-L026032?:
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:584: printf("mode:%d pwmR:%.0f pwmL: %.0f  \r\n",mode,pwmR,pwmL);
-	push	_main_pwmL_1_119
-	push	(_main_pwmL_1_119 + 1)
-	push	(_main_pwmL_1_119 + 2)
-	push	(_main_pwmL_1_119 + 3)
-	push	_main_pwmR_1_119
-	push	(_main_pwmR_1_119 + 1)
-	push	(_main_pwmR_1_119 + 2)
-	push	(_main_pwmR_1_119 + 3)
-	push	_main_mode_1_119
-	push	(_main_mode_1_119 + 1)
 	mov	a,#__str_18
 	push	acc
 	mov	a,#(__str_18 >> 8)
@@ -2731,81 +2670,10 @@ L026032?:
 	push	acc
 	lcall	_printf
 	mov	a,sp
-	add	a,#0xf3
-	mov	sp,a
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:585: sprintf(buff, "pwmR: %.0f pwmL: %.0f \r\n", mode, pwmR,pwmL);
-	push	_main_pwmL_1_119
-	push	(_main_pwmL_1_119 + 1)
-	push	(_main_pwmL_1_119 + 2)
-	push	(_main_pwmL_1_119 + 3)
-	push	_main_pwmR_1_119
-	push	(_main_pwmR_1_119 + 1)
-	push	(_main_pwmR_1_119 + 2)
-	push	(_main_pwmR_1_119 + 3)
-	push	_main_mode_1_119
-	push	(_main_mode_1_119 + 1)
-	mov	a,#__str_19
-	push	acc
-	mov	a,#(__str_19 >> 8)
-	push	acc
-	mov	a,#0x80
-	push	acc
-	mov	a,#_buff
-	push	acc
-	mov	a,#(_buff >> 8)
-	push	acc
-	mov	a,#0x40
-	push	acc
-	lcall	_sprintf
-	mov	a,sp
-	add	a,#0xf0
-	mov	sp,a
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:586: sendstr1(buff);
-	mov	dptr,#_buff
-	mov	b,#0x40
-	lcall	_sendstr1
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:587: waitms_or_RI1(200);
-	mov	dptr,#0x00C8
-	lcall	_waitms_or_RI1
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:589: if(RXU1())
-	lcall	_RXU1
-	jnc	L026034?
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:591: getstr1(buff);
-	mov	dptr,#_buff
-	mov	b,#0x40
-	lcall	_getstr1
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:593: TR2=0; // Stop timer 2
-	clr	_TR2
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:595: TMR2RL=0x10000L-x; // Change reload value for new frequency
-	mov	_TMR2RL,#0xB0
-	mov	(_TMR2RL >> 8),#0xB9
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:596: TR2=1; // Start timer 2
-	setb	_TR2
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:597: printf("RX: %s\r\n", buff);
-	mov	a,#_buff
-	push	acc
-	mov	a,#(_buff >> 8)
-	push	acc
-	mov	a,#0x40
-	push	acc
-	mov	a,#__str_20
-	push	acc
-	mov	a,#(__str_20 >> 8)
-	push	acc
-	mov	a,#0x80
-	push	acc
-	lcall	_printf
-	mov	a,sp
 	add	a,#0xfa
 	mov	sp,a
 L026034?:
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:599: LCDprint("ooooooo",2,1);
-	mov	_LCDprint_PARM_2,#0x02
-	setb	_LCDprint_PARM_3
-	mov	dptr,#__str_21
-	mov	b,#0x80
-	lcall	_LCDprint
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:600: if(buttonpress > 7){
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:601: if(buttonpress > 7){
 	clr	c
 	mov	a,#0x07
 	subb	a,_main_buttonpress_1_119
@@ -2815,63 +2683,69 @@ L026034?:
 	xrl	b,#0x80
 	subb	a,b
 	jnc	L026036?
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:601: buttonpress = 0;
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:602: buttonpress = 0;
 	clr	a
 	mov	_main_buttonpress_1_119,a
 	mov	(_main_buttonpress_1_119 + 1),a
 L026036?:
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:603: if (P3_1 == 0){
-	jb	_P3_1,L026065?
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:604: buttonpress++;
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:604: if (P3_1 == 0){
+	jb	_P3_1,L026068?
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:605: buttonpress++;
 	inc	_main_buttonpress_1_119
 	clr	a
-	cjne	a,_main_buttonpress_1_119,L026081?
+	cjne	a,_main_buttonpress_1_119,L026082?
 	inc	(_main_buttonpress_1_119 + 1)
-L026081?:
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:606: for(j = 1; j<buttonpress+1; j++){
-L026065?:
-	mov	a,#0x01
-	add	a,_main_buttonpress_1_119
-	mov	r2,a
-	clr	a
-	addc	a,(_main_buttonpress_1_119 + 1)
-	mov	r3,a
-	mov	r4,#0x01
-	mov	r5,#0x00
-L026042?:
+L026082?:
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:607: for(j = 0; j<7; j++)
+L026068?:
+	mov	r2,#0x00
+	mov	r3,#0x00
+L026045?:
 	clr	c
-	mov	a,r4
-	subb	a,r2
-	mov	a,r5
+	mov	a,r2
+	subb	a,#0x07
+	mov	a,r3
 	xrl	a,#0x80
-	mov	b,r3
+	subb	a,#0x80
+	jnc	L026048?
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:609: if (j < buttonpress){
+	clr	c
+	mov	a,r2
+	subb	a,_main_buttonpress_1_119
+	mov	a,r3
+	xrl	a,#0x80
+	mov	b,(_main_buttonpress_1_119 + 1)
 	xrl	b,#0x80
 	subb	a,b
-	jc	L026082?
-	ljmp	L026040?
-L026082?:
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:607: LCDprint("O",2,j);
-	mov	a,r4
-	orl	a,r5
-	add	a,#0xff
-	mov	_LCDprint_PARM_3,c
+	jnc	L026040?
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:610: buff[j] = 'O';
+	mov	a,r2
+	add	a,#_main_buff_1_119
+	mov	r0,a
+	mov	@r0,#0x4F
+	sjmp	L026047?
+L026040?:
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:613: buff[j] = 'o';
+	mov	a,r2
+	add	a,#_main_buff_1_119
+	mov	r0,a
+	mov	@r0,#0x6F
+L026047?:
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:607: for(j = 0; j<7; j++)
+	inc	r2
+	cjne	r2,#0x00,L026045?
+	inc	r3
+	sjmp	L026045?
+L026048?:
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:616: buff[7] = '\0';
+	mov	(_main_buff_1_119 + 0x0007),#0x00
+;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:617: LCDprint(buff, 2,1);
 	mov	_LCDprint_PARM_2,#0x02
-	mov	dptr,#__str_22
-	mov	b,#0x80
-	push	ar2
-	push	ar3
-	push	ar4
-	push	ar5
+	setb	_LCDprint_PARM_3
+	mov	dptr,#_main_buff_1_119
+	mov	b,#0x40
 	lcall	_LCDprint
-	pop	ar5
-	pop	ar4
-	pop	ar3
-	pop	ar2
-;	C:\Users\mgjin\Documents\UBC\Year 2\ELEC 291\Project2\ELEC291_Project2\Remote.c:606: for(j = 1; j<buttonpress+1; j++){
-	inc	r4
-	cjne	r4,#0x00,L026042?
-	inc	r5
-	sjmp	L026042?
+	ljmp	L026043?
 	rseg R_CSEG
 
 	rseg R_XINIT
@@ -2957,25 +2831,9 @@ __str_17:
 	db 'At rest'
 	db 0x00
 __str_18:
-	db 'mode:%d pwmR:%.0f pwmL: %.0f  '
-	db 0x0D
-	db 0x0A
-	db 0x00
-__str_19:
-	db 'pwmR: %.0f pwmL: %.0f '
-	db 0x0D
-	db 0x0A
-	db 0x00
-__str_20:
 	db 'RX: %s'
 	db 0x0D
 	db 0x0A
-	db 0x00
-__str_21:
-	db 'ooooooo'
-	db 0x00
-__str_22:
-	db 'O'
 	db 0x00
 
 	CSEG
