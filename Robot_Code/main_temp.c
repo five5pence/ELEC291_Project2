@@ -137,6 +137,7 @@ void ConfigurePins(void)
 // Period is measured in (2/SYSCLK)s => 50ns intervals
 long int GetPeriod (int n)
 {
+	__builtin_disable_interrupts();
 	int i;
 	unsigned int saved_TCNT1a, saved_TCNT1b;
 	
@@ -164,7 +165,7 @@ long int GetPeriod (int n)
 			if(_CP0_GET_COUNT() > (SYSCLK/8)) return 0;
 		}
 	}
-
+	__builtin_enable_interrupts();
 	return  _CP0_GET_COUNT();
 }
 
@@ -241,7 +242,7 @@ int UART1Configure(int desired_baud)
 
 	// Do what the caption of FIGURE 11-2 in '60001168J.pdf' says: "For input only, PPS functionality does not have
     // priority over TRISx settings. Therefore, when configuring RPn pin for input, the corresponding bit in the
-    // TRISx register must also be configured for input (set to �1�)."
+    // TRISx register must also be configured for input (set to ?1?)."
     
     ANSELB &= ~(1<<13); // Set RB13 as a digital I/O
     TRISB |= (1<<13);   // configure pin RB13 as input
@@ -456,7 +457,7 @@ void main(void)
     // placeholder value for motor control variable
     unsigned char mode = 0;
 	char buff[80];
-	int nums[3];
+	int num1,num2,num3;
 	int j = 0;
 
 	DDPCON = 0;
@@ -466,12 +467,13 @@ void main(void)
     UART1Configure(9600); // Configure UART1 to read serial values from the JDY40
     SetupTimer1();
 	ConfigurePins();
-
+	
+	
 // Initialize JDY40
 	// We should select an unique device ID.  The device ID can be a hex
 	// number from 0x0000 to 0xFFFF.  In this case is set to 0xABBA
 	printf("Initialising JDY40...");
-	SendATCommand("AT+DVIDBABA\r\n");  
+	SendATCommand("AT+DVIDBCBA\r\n");  
 
 	// To check configuration
 	SendATCommand("AT+VER\r\n");
@@ -486,8 +488,12 @@ void main(void)
 	uart_puts("\x1b[2J\x1b[1;1H"); // Clear screen using ANSI escape sequence.
 	uart_puts("\rPIC32 Robot Test\r\n");
 	while(1)
-	{/*
+	{
+	
+		
 		count=GetPeriod(100); // Get period of 100 wave cycles
+		
+		
 		if (count > 22000){
 			count=GetPeriod(100); // If invalid, measure again
 		}
@@ -505,53 +511,38 @@ void main(void)
 		else
 		{
 			uart_puts("NO FREQUENCY ON PIN14                     \r");
-		}*/
+		}
 
 		update_motors(1); // motor test code
 
         // Read serial values from JDY40
 		if(U1STAbits.URXDA)
 		{
-			__builtin_disable_interrupts();
-
-			uart_puts("\nVALID SIGNAL\r\n");
-
-			j=SerialReceive1(buff, 10); //program gets stuck here for some reason
 			
-			PrintNumber(j, 10, 2);
-			//uart_puts(buff);
-			uart_puts(buff);
+				SerialReceive1(buff, sizeof(buff)-1);
+				if (strlen(buff)==9){
+				num1=atoi(&buff[0]);
+				num2=atoi(&buff[2]);
+				num3=atoi(&buff[6]);
+				PrintNumber(num1,10,1);
+				
+				}
 
-			__builtin_enable_interrupts();
-			/*
-			numsfromstr(buff, nums); //Extract values from string
-			PrintNumber(nums[0],10,1);
-			PrintNumber(nums[1],10,3);
-			PrintNumber(nums[2],10,3);
-			SendInt(f,10,6); // Transmit frequency value
-			*/
+			
+			
+			
+			//SendInt(f,10,6); // Transmit frequency value
+			
 		}
-		else
-		{
-			uart_puts("\nNO SIGNAL							\r");
-		}
-
-
-		/*
-		numsfromstr("mode:1x:030y:050", nums);
-		PrintNumber(nums[0],10,1);
-		PrintNumber(nums[1],10,3);
-		PrintNumber(nums[2],10,3);
-
-        ISR_pwm1 = nums[1]*20; //Power percentage converted to PWM power value
-        ISR_pwm2 = nums[2]*20; //
-        mode = nums[0]; //placeholder, should be mode field of JDY40 read
+        ISR_pwm1 = num2*20; //Power percentage converted to PWM power value ---> This is the right motor
+        ISR_pwm2 = num3*20; //
+        mode = num1; //placeholder, should be mode field of JDY40 read
 
         // update motor operation mode
         update_motors(mode);
-*/
+
         // If the controller requests a frequency read, send it
-		waitms(200);
+		//waitms(200);
 	}
 }
 /*
