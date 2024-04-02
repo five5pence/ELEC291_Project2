@@ -462,8 +462,7 @@ void main (void)
 	float pwmR;
 	float pwmL;
 	int mode=1;
-	int buttonpress=0;
-	int j;
+	int timeout_cnt;
 	
 	float JS[2]; //for joystick
 	
@@ -485,7 +484,7 @@ void main (void)
 	InitADC();
 	
 	//For JDY 40 transmission 
-	SendATCommand("AT+DVIDBABA\r\n");  
+	SendATCommand("AT+DVID9B9A\r\n");  
 
 	// To check configuration
 	SendATCommand("AT+VER\r\n");
@@ -534,7 +533,7 @@ void main (void)
 			{
 			TR2=1;
 			TMR2RL=0x10000L-x;
-			mode=0;
+			mode=2;
 			if(JS[1]>1.75){
 				pwmL=(JS[1]-1.72)/0.01604;
 				pwmR=100.0-pwmL;
@@ -553,16 +552,19 @@ void main (void)
 			
 				pwmL=(JS[1]-1.72)/0.01604;
 				pwmR=100.0-pwmL;
+				mode=3;
 				LCDprint("Turning right",1,1);
 		
 		}else if (JS[1]<1.6){
 				pwmR=100.0-(JS[1]-0.041)/0.01604;
 				pwmL=100.0-pwmR;
 				LCDprint("Turning left",1,1);
+				mode=4;
 		
 		}else{
 			pwmR=0.0;
 			pwmL=0.0;
+			mode=0;
 			LCDprint("At rest",1,1);
 			TR2=0;
 			
@@ -581,10 +583,25 @@ void main (void)
 			pwmL=0.0;
 		}
 		
-		printf("mode:%d pwmR:%.0f pwmL: %.0f  \r\n",mode,pwmR,pwmL);
-		sprintf(buff, "pwmR: %.0f pwmL: %.0f \r\n", mode, pwmR,pwmL);
+		//master slave 
+		
+		timeout_cnt=0;
+		/*while(1){
+			if(RXU1())break;
+			Timer3us(100);
+			timeout_cnt++;
+			if (timeout_cnt>=1000) break;
+		}*/
+		
+		
+		
+		
+		
+		sprintf(buff, "%d,%03d,%03d\n", mode, (int)pwmR,(int)pwmL);
+		printf(buff);
+		
 		sendstr1(buff);
-		waitms_or_RI1(200);
+		//waitms_or_RI1(50);
 		
 		if(RXU1())
 		{
@@ -596,15 +613,8 @@ void main (void)
 			TR2=1; // Start timer 2
 			printf("RX: %s\r\n", buff);
 		}
-		LCDprint("ooooooo",2,1);
-		if(buttonpress > 7){
-			buttonpress = 0;
-		}
-		if (P3_1 == 0){
-			buttonpress++;
-		}
-		for(j = 1; j<buttonpress+1; j++){
-			LCDprint("O",2,j);
-		}
+		
+		waitms_or_RI1(200);
 	}
+	
 }
