@@ -40,7 +40,7 @@
 
 #define PIN_PERIOD (PORTB&(1<<5))
 
-volatile int ISR_pwm1=50, ISR_pwm2=50, ISR_cnt=0; // Declared variables as volatile, since they can be changed independent on normal code operation
+volatile int ISR_pwm1=0, ISR_pwm2=0, ISR_cnt=0; // Declared variables as volatile, since they can be changed independent on normal code operation
 unsigned char motor_con[4];
 
 void __ISR(_TIMER_1_VECTOR, IPL5SOFT) Timer1_Handler(void)
@@ -124,6 +124,40 @@ void update_motors (char control_flags)
             motor_con[2] = 0;
             motor_con[3] = 0;
         }
+}
+
+void numsfromstr (char *string, int buffer[])
+{
+	int i;
+	int j = 0;
+	char temp[8]; //temporary number storage buffer
+
+	//clear buffer
+	buffer[0] = 0;
+	buffer[1] = 0;
+	buffer[2] = 0;
+	// scan length of string
+	do
+	{
+		if (((string[i] - '0') >= 0) && ((string[i] - '0') <= 9)) //ASCII number detection
+		{
+			// put value into a char array if the value is an int
+			temp[j] = string[i];
+			j++;
+		}
+		i++; //increment through string
+	}
+	while (string[i] != '\0');
+
+	//temp[j+1] = '/0'; //terminate temp to make it a proper string
+
+	buffer[0] = (temp[0] - '0'); // cast chars to int values
+	buffer[1] += (temp[1]-'0')*100;
+	buffer[1] += (temp[2]-'0')*10;
+	buffer[1] += (temp[3]-'0');
+	buffer[2] += (temp[4]-'0')*100;
+	buffer[2] += (temp[5]-'0')*10;
+	buffer[2] += (temp[6]-'0');
 }
 
 // Print string to UART
@@ -313,7 +347,13 @@ int SerialTransmit1(const char *buffer)
  
     return 0;
 }
- 
+
+int putchar1(const char c){
+	while(U1STAbits.UTXBF);
+	U1TXREG=c;
+	return 0;
+}
+
 unsigned int SerialReceive1(char *buffer, unsigned int max_size)
 {
     unsigned int num_char = 0;
@@ -335,6 +375,14 @@ unsigned int SerialReceive1(char *buffer, unsigned int max_size)
     }
  
     return num_char;
+}
+
+char getchar1 (void)
+{
+	char c;
+	while(!U1STAbits.URXDA);
+	c=U1RXREG;
+	return (c);
 }
 
 // Use the core timer to wait for 1 ms.
@@ -368,11 +416,13 @@ void SendATCommand (char * s)
 void main(void)
 {
 	char buff[80];
+    char fbuff[8]; //To transmit frequency
     int cnt=0;
     int mode = 0;
     int count, f;
-    char *c;
+    char c;
     int num1,num2,num3;
+    
     
 	DDPCON = 0;
 	CFGCON = 0;
@@ -412,67 +462,60 @@ void main(void)
 	{
 	
 		
-		/*count=GetPeriod(100); // Get period of 100 wave cycles
-		
-		
-		if (count > 22000){
-			count=GetPeriod(100); // If invalid, measure again
-		}
-
-		if(count>0)
-		{
-			f=((SYSCLK/2L)*100L)/count; // Convert period units to Hz
-
-			uart_puts("f="); // serial print for debugging
-			PrintNumber(f, 10, 7);
-			uart_puts("Hz, count=");
-			PrintNumber(count, 10, 6);
-			uart_puts("          \n");
-		}
-		else
-		{
-			uart_puts("NO FREQUENCY ON PIN14                     \r");
-		}*/
-		
-        // Read serial values from JDY40
 		if(U1STAbits.URXDA)
 		{
-				//printf("y");
-			SerialReceive1(buff, sizeof(buff)-1);
-			if (strlen(buff)==9){
-				num1=atoi(&buff[0]);
-				num2=atoi(&buff[2]);
-				num3=atoi(&buff[6]);
-				//PrintNumber(num2,10,3);
-				//PrintNumber(num1,10,1);
-			}
-	/*		else if (strlen(buff)==1) // Calc & transmit f value if commanded to
-			{
-			count=GetPeriod(100); // Get period of 100 wave cycles
-
-			if (count > 22000){
-				count=GetPeriod(100); // If invalid, measure again
-			}
-
-			if(count>0)
-			{
-				f=((SYSCLK/2L)*100L)/count; // Convert period units to Hz
-
-				uart_puts("f="); // serial print for debugging
-				PrintNumber(f, 10, 7);
-				uart_puts("Hz, count=");
-				PrintNumber(count, 10, 6);
-				uart_puts("          \n");
-			}
-			SendInt(f,10,6); // Transmit frequency value
-			}*/
+				//Master slave part
+				c=getchar1();
+				if(c=='M'){
+					delayms(5);
+				
+					__builtin_disable_interrupts();
+					count=GetPeriod(100); // Get period of 100 wave cycles
+					__builtin_enable_interrupts();
+					if (count > 22000){
+						__builtin_disable_interrupts();
+						count=GetPeriod(100); // If invalid, measure again
+						__builtin_enable_interrupts();
+					}
+					if(count>0)
+					{
+						f=((SYSCLK/2L)*100L)/count; // Convert period units to Hz
+						if((f>28600)&&(f<28750)){
+							putchar1('A');	
+							
+						}
+						if((f>28750)&&(f<28900)){
+							putchar1('B');
+						}
+						if(f>28900){
+							putchar1('C');
+						}
+					}
+					
+					//printf("%d\r\n",f);
+					
+					
+				}
+				SerialReceive1(buff, sizeof(buff)-1);
+				if (strlen(buff)==9){
+					num1=atoi(&buff[0]);
+					num2=atoi(&buff[2]);
+					num3=atoi(&buff[6]);
+				
+					
+				
+				}
+	
 		}
         ISR_pwm1 = num2*20; //Power percentage converted to PWM power value ---> This is the right motor
         ISR_pwm2 = num3*20; //
         mode = num1; //placeholder, should be mode field of JDY40 read
-		printf("%d",mode);
+		
         // update motor operation mode
         update_motors(mode);
+
+        // If the controller requests a frequency read, send it
+		//waitms(200);
 	}
 }
 /*
