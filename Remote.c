@@ -1,3 +1,4 @@
+//final version
 #include <EFM8LB1.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -30,6 +31,7 @@
 #define MIN_FREQ 27000L
 
 idata char buff[20];
+//idata char fbuff[20];
 
 
 /*NOTE: 
@@ -462,15 +464,18 @@ void Timer2_ISR (void) interrupt INTERRUPT_TIMER2
 
 void main (void)
 {
+	char c;
 	float pwmR;
 	float pwmL;
 	int mode=1;
 	int disp=0;
 	int j;
 	int interval = (MAX_FREQ-MIN_FREQ)/16;
-	int freq;
-	char buff[8];
-		
+	int freq; // for frequency
+	
+	//int temp;
+	int timeout_cnt;
+	
 	float JS[2]; //for joystick
 	
 	
@@ -491,7 +496,7 @@ void main (void)
 	InitADC();
 	
 	//For JDY 40 transmission 
-	SendATCommand("AT+DVIDBABA\r\n");  
+	SendATCommand("AT+DVID9B9A\r\n");  
 
 	// To check configuration
 	SendATCommand("AT+VER\r\n");
@@ -505,6 +510,7 @@ void main (void)
 	printf("\r\Press and hold the BOOT button to transmit.\r\n");
 	
 	LCDprint("Remote Test",1,1);
+	LCDprint("ooo",2,1);
 
 	while(1)
 	{
@@ -538,9 +544,9 @@ void main (void)
 			
 		}else if (JS[0]<1.6) //for going backwards
 			{
-			TR2=1;
-			TMR2RL=0x10000L-x;
-			mode=0;
+		//	TR2=1;
+		//	TMR2RL=0x10000L-x;
+			mode=2;
 			if(JS[1]>1.75){
 				pwmL=(JS[1]-1.72)/0.01604;
 				pwmR=100.0-pwmL;
@@ -559,16 +565,19 @@ void main (void)
 			
 				pwmL=(JS[1]-1.72)/0.01604;
 				pwmR=100.0-pwmL;
+				mode=3;
 				LCDprint("Turning right",1,1);
 		
 		}else if (JS[1]<1.6){
 				pwmR=100.0-(JS[1]-0.041)/0.01604;
 				pwmL=100.0-pwmR;
 				LCDprint("Turning left",1,1);
+				mode=4;
 		
 		}else{
 			pwmR=0.0;
 			pwmL=0.0;
+			mode=0;
 			LCDprint("At rest",1,1);
 			TR2=0;
 			
@@ -586,40 +595,85 @@ void main (void)
 		if (pwmL<0){
 			pwmL=0.0;
 		}
+
 		
-		//printf("mode:%d pwmR:%.0f pwmL: %.0f  \r\n",mode,pwmR,pwmL);
-		//sprintf(buff, "pwmR: %.0f pwmL: %.0f \r\n", mode, pwmR,pwmL);
+		//master slave 
+		putchar1('M');
+		timeout_cnt=0;
+		while(1){
+			if(RXU1())break;
+			Timer3us(100);
+			timeout_cnt++;
+			if (timeout_cnt>=1000) break;
+		}
+	
+		sprintf(buff, "%d,%03d,%03d\n", mode, (int)pwmR,(int)pwmL);
+		
 		sendstr1(buff);
-		//waitms_or_RI1(200);
+		printf("%s\r\n",buff);
+		//waitms_or_RI1(50);
 		
 		if(RXU1())
 		{
-			getstr1(buff);
-				//For speaker
-			TR2=0; // Stop timer 2
+			//Receive frequency from the robot
+			c=getchar1();
+			if(c=='A'){
+				f=2000;
+				x=(SYSCLK/(2L*f));
+				TR2=0;
+				TMR2RL=0x10000L-x;
+				TR2=1;
+				LCDprint("1",2,1);
+				waitms_or_RI1(300);
+			}
+			if(c=='B'){
+				f=2000;
+				x=(SYSCLK/(2L*f));
+				TR2=0;
+				TMR2RL=0x10000L-x;
+				TR2=1;
+				waitms_or_RI1(150);
+				LCDprint("2",2,1);
+				}
+			if(c=='C'){
+				f=2000;
+				x=(SYSCLK/(2L*f));
+				TR2=0;
+				TMR2RL=0x10000L-x;
+				TR2=1;
+				LCDprint("3",2,1);
+				}
+			
+			//waitms_or_RI1(200);
+			//if (strlen(fbuff)==5){
+			
+				//freq=atoi(buff);
+				//printf("buff(str): %05d\n",freq);
+			 // TO BE DELETED
+		//	}
+				
+			
+			
+			
+		}
 		
-			TMR2RL=0x10000L-x; // Change reload value for new frequency
-			TR2=1; // Start timer 2
-			printf("RX: %s\r\n", buff);
-		}
-		/*
-		if(buttonpress > 7){
-			buttonpress = 0;
-		}
-		if (P3_1 == 0){
-			buttonpress++;
-		}*/
-		disp = (freq-MIN_FREQ)/interval; //freq is a placeholder value for the f received from the PIC32
-		for(j = 0; j<7; j++)
+		
+	//	disp = (freq-MIN_FREQ)/interval; //freq is a placeholder value for the f received from the PIC32
+	/*	for(j = 0; j<3; j++)
 		{
-			if (j < buttonpress){
+			if (j < di){ // Prints big 'O's on the LCD until appropriate level is displayed
 				buff[j] = 'O';
 			}
-			else {
+			else { // Fill the rest with small 'o's
 				buff[j] = 'o';
 			}	
 		}
 		buff[7] = '\0';
 		LCDprint(buff, 2,1);
+
+	}*/
+		
+	//waitms_or_RI1(200);
+	
 	}
 }
